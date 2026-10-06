@@ -1,0 +1,106 @@
+import {
+  LayoutDashboard,
+  BookOpen,
+  GraduationCap,
+  Users,
+  Settings,
+  Cpu,
+  Trophy,
+  CreditCard,
+  type LucideIcon,
+} from 'lucide-react';
+import type { UserRole } from '@/types/database.types';
+
+export interface NavItem {
+  labelKey: 'dashboard' | 'myCourses' | 'browseCourses' | 'students' | 'courses' | 'instructors' | 'aiModels' | 'leaderboard' | 'subscriptions' | 'settings';
+  path: string;
+  icon: LucideIcon;
+  roles: UserRole[];
+}
+
+export const NAV_ITEMS: NavItem[] = [
+  {
+    labelKey: 'dashboard',
+    path: '/dashboard',
+    icon: LayoutDashboard,
+    roles: ['student', 'instructor'],
+  },
+  {
+    labelKey: 'dashboard',
+    path: '/admin',
+    icon: LayoutDashboard,
+    roles: ['admin'],
+  },
+  {
+    labelKey: 'myCourses',
+    path: '/courses',
+    icon: BookOpen,
+    roles: ['student', 'instructor'],
+  },
+  {
+    labelKey: 'browseCourses',
+    path: '/browse',
+    icon: GraduationCap,
+    roles: ['student'],
+  },
+  {
+    labelKey: 'students',
+    path: '/students',
+    icon: Users,
+    roles: ['instructor', 'admin'],
+  },
+  {
+    labelKey: 'courses',
+    path: '/admin/courses',
+    icon: BookOpen,
+    roles: ['admin'],
+  },
+  {
+    labelKey: 'instructors',
+    path: '/instructors',
+    icon: Users,
+    roles: ['admin'],
+  },
+  {
+    labelKey: 'aiModels',
+    path: '/ai-models',
+    icon: Cpu,
+    roles: ['admin'],
+  },
+  {
+    labelKey: 'leaderboard',
+    path: '/leaderboard',
+    icon: Trophy,
+    roles: ['student'],
+  },
+  {
+    labelKey: 'subscriptions',
+    path: '/subscriptions',
+    icon: CreditCard,
+    roles: ['student'],
+  },
+  {
+    labelKey: 'settings',
+    path: '/settings',
+    icon: Settings,
+    roles: ['student', 'instructor', 'admin'],
+  },
+];
+
+export function getNavItemsForRole(role: UserRole | undefined): NavItem[] {
+  if (!role) return [];
+  return NAV_ITEMS.filter((item) => item.roles.includes(role));
+}
+
+export function getDashboardPathForRole(role: UserRole | undefined): string {
+  switch (role) {
+    case 'admin':
+      return '/admin';
+    case 'instructor':
+      return '/instructor';
+    case 'student':
+      return '/student';
+    default:
+      return '/auth/sign-in';
+  }
+}

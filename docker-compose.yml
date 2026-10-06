@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-db-v2
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: educational_platform_v2
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data_v2:/var/lib/postgresql/data
+    networks:
+      - app-network-v2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d educational_platform_v2"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: backend_fastapi/Dockerfile
+    container_name: fastapi-app-v2
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8005
+      WORKERS: 2
+      APP_NAME: ${APP_NAME:-Fasl_ai_v2}
+      AI_SERVICE_URL: http://ai-service:8001
+      ENVIRONMENT: docker
+      PYTHONPATH: /app
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      APP_DATA_DIR: /app/data
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/educational_platform_v2
+    ports:
+      - '8006:8005'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    networks:
+      - app-network-v2
+    volumes:
+      - ./backend_fastapi:/app:delegated
+      - ./database:/app/database:ro
+      - ./data:/app/data
+      - ./backend_fastapi/logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8005/health').read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  ai-service:
+    build:
+      context: ./ai-model
+      dockerfile: Dockerfile
+    container_name: ai-service-v2
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8001
+    ports:
+      - '8002:8001'
+    networks:
+      - app-network-v2
+    volumes:
+      - ./ai-model:/app
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health').read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  postgres_data_v2:
+
+networks:
+  app-network-v2:
+    driver: bridge
