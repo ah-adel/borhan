@@ -21,6 +21,8 @@ import type { UserRole } from '@/types/database.types';
 import { useTranslation } from '@/context/I18nContext';
 import { extractApiErrorMessage, errorMessage } from '@/lib/apiError';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
 type DashboardUser = {
   id: string;
   name: string;
@@ -51,7 +53,7 @@ const EMPTY_STATS: AdminStats = { total_users: 0, total_students: 0, total_instr
 
 async function fetchAdminResource<T>(path: string): Promise<T> {
   const token = window.sessionStorage.getItem('learnflow_session_token');
-  const response = await fetch(path, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(extractApiErrorMessage(payload, response.status));
   return payload.data as T;
@@ -184,7 +186,7 @@ export function AdminDashboardPage() {
   const setMaintenanceMode = async (enabled: boolean) => {
     try {
       const token = window.sessionStorage.getItem('learnflow_session_token');
-      const response = await fetch('/api/admin/system/maintenance', { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ enabled }) });
+      const response = await fetch(`${API_BASE_URL}/api/admin/system/maintenance`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ enabled }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(extractApiErrorMessage(payload, response.status));
       setMaintenance(enabled);
@@ -224,7 +226,7 @@ export function AdminDashboardPage() {
 
   const updateUserRole = async (userId: string, role: UserRole) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/role`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/role`, {
         method: 'PATCH',
         headers: authHeaders(),
         body: JSON.stringify({ role }),
@@ -245,7 +247,7 @@ export function AdminDashboardPage() {
 
   const updateUserStatus = async (userId: string, status: 'active' | 'inactive' | 'suspended') => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
         method: 'PATCH',
         headers: authHeaders(),
         body: JSON.stringify({ status }),
@@ -266,7 +268,7 @@ export function AdminDashboardPage() {
 
   const updateCourseStatus = async (courseId: string, status: 'draft' | 'published' | 'review' | 'archived') => {
     try {
-      const response = await fetch(`/api/admin/courses/${courseId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/courses/${courseId}/status`, {
         method: 'PATCH',
         headers: authHeaders(),
         body: JSON.stringify({ status }),
@@ -289,7 +291,7 @@ export function AdminDashboardPage() {
 
   const deleteUser = async (userId: string) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });

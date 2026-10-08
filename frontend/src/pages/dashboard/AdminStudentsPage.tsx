@@ -5,6 +5,8 @@ import { StudentsPage } from './StudentsPage';
 import { useTranslation } from '@/context/I18nContext';
 import { extractApiErrorMessage, errorMessage } from '@/lib/apiError';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
 type Student = {
   id: string;
   name: string;
@@ -43,7 +45,7 @@ export function AdminStudentsPage() {
 
   const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const token = window.sessionStorage.getItem('learnflow_session_token');
-    const response = await fetch(path, {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
