@@ -1,5 +1,6 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 import { localizedRuntimeError } from '@/lib/errorMessages';
+import { invalidateAdminListCaches, loadAdminList } from '@/lib/adminListCache';
 
 export type AdminCourseStatus = 'draft' | 'published' | 'review' | 'archived' | 'rejected';
 
@@ -55,7 +56,7 @@ export function normalizeAdminMediaUrl(value: string | null | undefined) {
 }
 
 export async function fetchAdminCourses() {
-  return request<AdminCourse[]>('/api/admin/courses');
+  return loadAdminList('courses', () => request<AdminCourse[]>('/api/admin/courses'));
 }
 
 export async function fetchAdminCourseInspector(courseId: string) {
@@ -63,13 +64,19 @@ export async function fetchAdminCourseInspector(courseId: string) {
 }
 
 export async function updateAdminCourseStatus(courseId: string, status: AdminCourseStatus) {
-  return request<AdminCourse>(`/api/admin/courses/${encodeURIComponent(courseId)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+  const result = await request<AdminCourse>(`/api/admin/courses/${encodeURIComponent(courseId)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+  invalidateAdminListCaches();
+  return result;
 }
 
 export async function updateAdminCourse(courseId: string, values: { instructor_id?: string; is_featured?: boolean }) {
-  return request<AdminCourse>(`/api/admin/courses/${encodeURIComponent(courseId)}`, { method: 'PATCH', body: JSON.stringify(values) });
+  const result = await request<AdminCourse>(`/api/admin/courses/${encodeURIComponent(courseId)}`, { method: 'PATCH', body: JSON.stringify(values) });
+  invalidateAdminListCaches();
+  return result;
 }
 
 export async function deleteAdminCourse(courseId: string) {
-  return request<{ deleted: boolean }>(`/api/admin/courses/${encodeURIComponent(courseId)}`, { method: 'DELETE' });
+  const result = await request<{ deleted: boolean }>(`/api/admin/courses/${encodeURIComponent(courseId)}`, { method: 'DELETE' });
+  invalidateAdminListCaches();
+  return result;
 }

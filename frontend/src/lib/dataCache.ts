@@ -5,6 +5,7 @@ type CacheEntry<T> = {
 
 const cache = new Map<string, CacheEntry<unknown>>();
 const pendingLoads = new Map<string, Promise<unknown>>();
+const cacheGenerations = new Map<string, number>();
 
 export function getCachedData<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -33,12 +34,15 @@ export async function loadCachedData<T>(
     return pendingLoad as Promise<T>;
   }
 
+  const generation = cacheGenerations.get(key) ?? 0;
   const nextLoad = Promise.resolve(loader())
     .then((freshValue) => {
-      cache.set(key, {
-        value: freshValue,
-        expiresAt: Date.now() + ttlMs,
-      });
+      if ((cacheGenerations.get(key) ?? 0) === generation) {
+        cache.set(key, {
+          value: freshValue,
+          expiresAt: Date.now() + ttlMs,
+        });
+      }
       return freshValue;
     })
     .finally(() => {
@@ -53,16 +57,21 @@ export async function loadCachedData<T>(
 }
 
 export function invalidateCache(prefix?: string) {
+  const keys = new Set([...cache.keys(), ...pendingLoads.keys()]);
   if (!prefix) {
+    for (const key of keys) {
+      cacheGenerations.set(key, (cacheGenerations.get(key) ?? 0) + 1);
+    }
     cache.clear();
     pendingLoads.clear();
     return;
   }
 
-  for (const key of Array.from(cache.keys())) {
+  for (const key of keys) {
     if (key.startsWith(prefix)) {
       cache.delete(key);
       pendingLoads.delete(key);
+      cacheGenerations.set(key, (cacheGenerations.get(key) ?? 0) + 1);
     }
   }
 }
