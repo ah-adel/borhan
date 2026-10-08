@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="Fasl_ai application API.",
+    description="Borhan application API.",
     docs_url="/docs",
     redoc_url="/redoc",
 )

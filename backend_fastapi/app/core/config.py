@@ -55,7 +55,7 @@ def _jwt_secret_key() -> str:
 
 
 class Settings(BaseModel):
-    app_name: str = Field(default_factory=lambda: os.getenv("APP_NAME", "Fasl_ai_v2"))
+    app_name: str = Field(default_factory=lambda: os.getenv("APP_NAME", "Borhan"))
     environment: str = Field(default_factory=lambda: os.getenv("ENVIRONMENT", "development").strip().lower())
     ai_service_enabled: bool = Field(default_factory=lambda: os.getenv("AI_SERVICE_ENABLED", "false" if os.getenv("ENVIRONMENT", "").strip().lower() in {"prod", "production", "vercel"} else "true").strip().lower() in {"1", "true", "yes"})
     debug: bool = Field(default=False)

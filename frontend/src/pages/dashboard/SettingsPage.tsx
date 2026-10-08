@@ -16,8 +16,8 @@ import { useTranslation } from '@/context/I18nContext';
 const defaultPlatformSettings: LocalPlatformSettings = {
   adminName: 'Platform Admin',
   adminEmail: 'ah.adel2188@gmail.com',
-  companyName: 'Fasl_ai',
-  siteName: 'Fasl_ai',
+  companyName: 'Borhan',
+  siteName: 'Borhan',
   timezone: 'UTC',
   allowStudentSignup: true,
   requireEmailVerification: true,

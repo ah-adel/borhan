@@ -440,8 +440,8 @@ export const MASTER_ADMIN_EMAIL = 'ah.adel2188@gmail.com';
 const defaultSettings: LocalPlatformSettings = {
   adminName: 'Platform Admin',
   adminEmail: MASTER_ADMIN_EMAIL,
-  companyName: 'Fasl_ai',
-  siteName: 'Fasl_ai',
+  companyName: 'Borhan',
+  siteName: 'Borhan',
   timezone: 'UTC',
   allowStudentSignup: true,
   requireEmailVerification: true,

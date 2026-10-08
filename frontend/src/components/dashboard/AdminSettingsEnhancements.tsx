@@ -13,7 +13,7 @@ import { useTranslation } from '@/context/I18nContext';
 import { errorMessage } from '@/lib/apiError';
 
 const defaults: AdminSettings = {
-  platform_name: 'Fasl_ai',
+  platform_name: 'Borhan',
   support_email: '',
   currency: 'USD',
   default_language: 'en',

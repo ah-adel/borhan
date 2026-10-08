@@ -12,7 +12,7 @@ from psycopg2.extras import Json, RealDictCursor
 
 from app.core.config import settings
 DEFAULT_ADMIN_SETTINGS: dict[str, Any] = {
-    "platform_name": "Fasl_ai",
+    "platform_name": "Borhan",
     "support_email": "",
     "currency": "USD",
     "default_language": "en",
@@ -23,8 +23,8 @@ DEFAULT_ADMIN_SETTINGS: dict[str, Any] = {
     "password_require_uppercase": True,
     "password_require_number": True,
     "password_require_symbol": True,
-    "companyName": "Fasl_ai",
-    "siteName": "Fasl_ai",
+    "companyName": "Borhan",
+    "siteName": "Borhan",
     "timezone": "UTC",
     "allowStudentSignup": True,
     "requireEmailVerification": True,

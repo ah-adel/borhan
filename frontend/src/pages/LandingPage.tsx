@@ -64,7 +64,7 @@ export function LandingPage() {
               L
             </div>
             <div>
-              <div className="text-base font-semibold tracking-tight">Fasl_ai</div>
+              <div className="text-base font-semibold tracking-tight">Borhan</div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
                 {t('landing.learningPlatform')}
               </div>
@@ -263,7 +263,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-8 text-sm text-gray-500 dark:text-gray-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-200">
             <Check className="h-4 w-4 text-emerald-500" />
-            Fasl_ai
+            Borhan
           </div>
           <div>{t('landing.designedForTeams')}</div>
         </div>

@@ -41,7 +41,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
               <GraduationCap className="h-5 w-5 text-white" />
             </div>
             <span className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-              Fasl_ai
+              Borhan
             </span>
           </div>
           <button
