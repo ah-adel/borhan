@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import jwt
 from fastapi.testclient import TestClient
 
+from app import db
 from app.core.config import settings
 from app.core.security import create_access_token
 from app.main import app
@@ -113,6 +114,19 @@ def test_health_endpoint_returns_sanitized_503_when_database_fails(monkeypatch, 
     assert 'db host and secret' in caplog.text
     assert 'db host and secret' not in response.text
     connection.close.assert_called_once()
+
+
+def test_database_pool_exhaustion_returns_sanitized_503(monkeypatch) -> None:
+    def exhaust_pool():
+        raise db.DatabasePoolExhausted("pool details must not be returned")
+
+    monkeypatch.setattr('app.api.routes.courses.get_public_courses', exhaust_pool)
+
+    response = client.get('/api/courses/public')
+
+    assert response.status_code == 503
+    assert response.json() == {'success': False, 'message': 'Database temporarily unavailable.'}
+    assert 'pool details' not in response.text
 
 
 def test_public_platform_stats_returns_aggregate_values() -> None:

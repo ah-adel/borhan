@@ -6,12 +6,15 @@ import hmac
 import logging
 import os
 import secrets
+import threading
 import time
 import uuid
 from typing import Any
 
 import psycopg2
+from psycopg2 import InterfaceError, OperationalError
 from psycopg2.extras import Json, RealDictCursor
+from psycopg2.pool import PoolError, ThreadedConnectionPool
 
 from app.core.config import settings
 
@@ -74,6 +77,174 @@ class _TimedConnection(psycopg2.extensions.connection):
         return super().cursor(name, cursor_factory, withhold)
 
 
+class DatabaseUnavailable(RuntimeError):
+    pass
+
+
+class DatabasePoolExhausted(DatabaseUnavailable):
+    pass
+
+
+_POOL_MIN_CONNECTIONS = 1
+_POOL_MAX_CONNECTIONS = 5
+_STALE_CONNECTION_CHECK_SECONDS = 30.0
+_connection_pool: ThreadedConnectionPool | None = None
+_connection_pool_lock = threading.Lock()
+_connection_last_returned_at: dict[int, float] = {}
+
+
+class _PooledConnection:
+    def __init__(self, pool: ThreadedConnectionPool, connection: Any):
+        self._pool = pool
+        self._connection = connection
+        self._released = False
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._connection, name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in {"_pool", "_connection", "_released"}:
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._connection, name, value)
+
+    def __enter__(self) -> _PooledConnection:
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        broken = self._is_broken() or (
+            exc_type is not None and issubclass(exc_type, (OperationalError, InterfaceError))
+        )
+        if broken:
+            self._release(discard=True)
+            raise DatabaseUnavailable("Database temporarily unavailable.") from exc_value
+
+        try:
+            if exc_type is None:
+                self._connection.commit()
+            else:
+                self._connection.rollback()
+        except (OperationalError, InterfaceError) as error:
+            self._release(discard=True)
+            raise DatabaseUnavailable("Database temporarily unavailable.") from error
+        except Exception:
+            self._release(discard=True)
+            raise
+
+        self._release(discard=False)
+        return False
+
+    def cursor(self, *args: Any, **kwargs: Any) -> Any:
+        return self._connection.cursor(*args, **kwargs)
+
+    def close(self) -> None:
+        if self._released:
+            return
+        discard = self._is_broken()
+        if not discard:
+            try:
+                self._connection.rollback()
+            except Exception:
+                discard = True
+        self._release(discard=discard)
+
+    def _is_broken(self) -> bool:
+        try:
+            return bool(self._connection.closed)
+        except Exception:
+            return True
+
+    def _release(self, *, discard: bool) -> None:
+        if self._released:
+            return
+        self._released = True
+        with _connection_pool_lock:
+            _connection_last_returned_at.pop(id(self._connection), None)
+        try:
+            self._pool.putconn(self._connection, close=discard)
+        except Exception:
+            try:
+                self._connection.close()
+            except Exception:
+                pass
+            discard = True
+        if not discard:
+            with _connection_pool_lock:
+                _connection_last_returned_at[id(self._connection)] = time.monotonic()
+
+
+def _get_connection_pool() -> ThreadedConnectionPool:
+    global _connection_pool
+    if _connection_pool is None:
+        with _connection_pool_lock:
+            if _connection_pool is None:
+                _connection_pool = ThreadedConnectionPool(
+                    _POOL_MIN_CONNECTIONS,
+                    _POOL_MAX_CONNECTIONS,
+                    settings.database_url,
+                    connect_timeout=5,
+                    keepalives=1,
+                    keepalives_idle=30,
+                    keepalives_interval=10,
+                    keepalives_count=3,
+                    connection_factory=_TimedConnection,
+                )
+    return _connection_pool
+
+
+def _discard_connection(pool: ThreadedConnectionPool, connection: Any) -> None:
+    with _connection_pool_lock:
+        _connection_last_returned_at.pop(id(connection), None)
+    try:
+        pool.putconn(connection, close=True)
+    except Exception:
+        try:
+            connection.close()
+        except Exception:
+            pass
+
+
+def _checkout_connection(pool: ThreadedConnectionPool) -> Any:
+    for attempt in range(2):
+        try:
+            connection = pool.getconn()
+        except PoolError as error:
+            raise DatabasePoolExhausted("Database connection pool is exhausted.") from error
+
+        if connection.closed:
+            _discard_connection(pool, connection)
+            continue
+
+        with _connection_pool_lock:
+            returned_at = _connection_last_returned_at.pop(id(connection), None)
+        if returned_at is not None and time.monotonic() - returned_at >= _STALE_CONNECTION_CHECK_SECONDS:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                    cursor.fetchone()
+                connection.commit()
+            except (OperationalError, InterfaceError):
+                _discard_connection(pool, connection)
+                continue
+            except Exception as error:
+                _discard_connection(pool, connection)
+                raise DatabaseUnavailable("Database temporarily unavailable.") from error
+
+        return connection
+
+    raise DatabaseUnavailable("Database temporarily unavailable.")
+
+
+def close_connection_pool() -> None:
+    global _connection_pool
+    with _connection_pool_lock:
+        pool = _connection_pool
+        _connection_pool = None
+        _connection_last_returned_at.clear()
+    if pool is not None:
+        pool.closeall()
+
+
 def _normalize_difficulty(value: Any) -> str:
     if value is None:
         return 'Beginner'
@@ -95,16 +266,15 @@ def _normalize_difficulty(value: Any) -> str:
 def get_connection():
     started = time.perf_counter() if _PERFORMANCE_TIMING_LOGS_ENABLED else 0.0
     try:
-        connection = psycopg2.connect(
-            settings.database_url,
-            connect_timeout=5,
-            connection_factory=_TimedConnection,
-        )
+        pool = _get_connection_pool()
+        connection = _checkout_connection(pool)
+        connection.autocommit = False
+        return _PooledConnection(pool, connection)
+    except (OperationalError, InterfaceError):
+        raise DatabaseUnavailable("Database temporarily unavailable.") from None
     finally:
         if _PERFORMANCE_TIMING_LOGS_ENABLED:
             logger.info("db_connection_acquire duration_ms=%.2f", (time.perf_counter() - started) * 1000)
-    connection.autocommit = False
-    return connection
 
 
 def _normalize_password(value: str) -> str:

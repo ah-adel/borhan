@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -23,12 +24,22 @@ logger = logging.getLogger("app.main")
 logging.basicConfig(level=logging.INFO)
 PERFORMANCE_TIMING_LOGS_ENABLED = os.getenv("PERFORMANCE_TIMING_LOGS", "").strip().lower() in {"1", "true", "yes"}
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    try:
+        yield
+    finally:
+        db.close_connection_pool()
+
+
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
     description="Borhan application API.",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -74,6 +85,14 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         detail,
     )
     return JSONResponse(status_code=exc.status_code, content=payload, headers=exc.headers)
+
+
+@app.exception_handler(db.DatabaseUnavailable)
+async def database_unavailable_handler(request: Request, exc: db.DatabaseUnavailable) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"success": False, "message": "Database temporarily unavailable."},
+    )
 
 
 @app.exception_handler(RequestValidationError)
