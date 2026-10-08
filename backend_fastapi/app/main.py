@@ -42,7 +42,7 @@ app.add_middleware(
             if origin.strip()
         ],
     ],
-    allow_origin_regex=r"https?://172\.29\.\d{1,3}\.\d{1,3}(?::\d+)?$",
+    allow_origin_regex=r"(?:https?://172\.29\.\d{1,3}\.\d{1,3}(?::\d+)?|https://frontend-[a-z0-9-]+\.vercel\.app)$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
