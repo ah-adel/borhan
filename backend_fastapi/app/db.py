@@ -1062,21 +1062,22 @@ def get_course_reviews(course_id: str) -> list[dict[str, Any]]:
             )
             rows = cursor.fetchall()
 
-    return [
-        {
-            "id": row["id"],
-            "course_id": row["course_id"],
-            "student_id": row["student_id"],
-            "user_id": row["student_id"],
-            "user_name": row.get("user_name") or "Student",
-            "userName": row.get("user_name") or "Student",
-            "rating": int(row["rating"]),
-            "comment": row["comment"],
-            "created_at": row["created_at"],
-            "createdAt": row["created_at"],
-        }
-        for row in rows
-    ]
+    return [_course_review_payload(row) for row in rows]
+
+
+def _course_review_payload(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "course_id": row["course_id"],
+        "student_id": row["student_id"],
+        "user_id": row["student_id"],
+        "user_name": row.get("user_name") or "Student",
+        "userName": row.get("user_name") or "Student",
+        "rating": int(row["rating"]),
+        "comment": row["comment"],
+        "created_at": row["created_at"],
+        "createdAt": row["created_at"],
+    }
 
 
 def get_course_review_stats(course_id: str) -> dict[str, Any]:
@@ -1112,8 +1113,26 @@ def get_course_enrollment_count(course_id: str) -> int:
 def _course_payload_from_row(row: dict[str, Any]) -> dict[str, Any]:
     course_id = row["id"]
     review_stats = get_course_review_stats(course_id)
+    return _course_payload_from_components(
+        row,
+        get_course_modules_with_lessons(course_id),
+        review_stats["reviews"],
+        review_stats["review_count"],
+        review_stats["average_rating"],
+        get_course_enrollment_count(course_id),
+    )
+
+
+def _course_payload_from_components(
+    row: dict[str, Any],
+    modules: list[dict[str, Any]],
+    reviews: list[dict[str, Any]],
+    review_count: int,
+    average_rating: float,
+    enrollment_count: int,
+) -> dict[str, Any]:
     return {
-        "id": course_id,
+        "id": row["id"],
         "instructor_id": row["instructor_id"],
         "title": row["title"],
         "description": row["description"],
@@ -1127,12 +1146,120 @@ def _course_payload_from_row(row: dict[str, Any]) -> dict[str, Any]:
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
         "status": row.get("status") or ("published" if row["is_published"] else "draft"),
-        "modules": get_course_modules_with_lessons(course_id),
-        "reviews": review_stats["reviews"],
-        "review_count": review_stats["review_count"],
-        "average_rating": review_stats["average_rating"],
-        "enrollment_count": get_course_enrollment_count(course_id),
+        "modules": modules,
+        "reviews": reviews,
+        "review_count": review_count,
+        "average_rating": average_rating,
+        "enrollment_count": enrollment_count,
     }
+
+
+def _course_payloads_from_rows(connection: Any, course_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not course_rows:
+        return []
+
+    course_ids = [row["id"] for row in course_rows]
+    reviews_by_course: dict[str, list[dict[str, Any]]] = {course_id: [] for course_id in course_ids}
+    review_stats: dict[str, tuple[int, float]] = {}
+    with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(
+            """
+            SELECT cr.id, cr.course_id, cr.student_id, cr.rating, cr.comment, cr.created_at,
+                   p.full_name AS user_name,
+                   COUNT(*) OVER (PARTITION BY cr.course_id) AS review_count,
+                   AVG(cr.rating) OVER (PARTITION BY cr.course_id) AS average_rating
+            FROM course_reviews cr
+            LEFT JOIN profiles p ON p.id = cr.student_id
+            WHERE cr.course_id = ANY(%s::text[])
+            ORDER BY cr.course_id, cr.created_at DESC
+            """,
+            (course_ids,),
+        )
+        for row in cursor.fetchall():
+            course_id = row["course_id"]
+            reviews_by_course[course_id].append(_course_review_payload(row))
+            review_stats[course_id] = (
+                int(row["review_count"]),
+                round(float(row["average_rating"]), 1),
+            )
+
+    modules_by_course: dict[str, list[dict[str, Any]]] = {course_id: [] for course_id in course_ids}
+    module_map: dict[str, dict[str, dict[str, Any]]] = {course_id: {} for course_id in course_ids}
+    with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(
+            """
+            SELECT cm.id AS module_id, cm.course_id AS module_course_id, cm.title AS module_title,
+                   cm.position AS module_position, cm.created_at AS module_created_at,
+                   l.id AS lesson_id, l.module_id AS lesson_module_id, l.title AS lesson_title,
+                   l.content AS lesson_content, l.video_url AS lesson_video_url,
+                   l.video_name AS lesson_video_name, l.attachment_url AS lesson_attachment_url,
+                   l.attachment_name AS lesson_attachment_name, l.position AS lesson_position,
+                   l.duration_minutes AS lesson_duration_minutes,
+                   l.duration_seconds AS lesson_duration_seconds, l.created_at AS lesson_created_at
+            FROM course_modules cm
+            LEFT JOIN lessons l ON l.module_id = cm.id
+            WHERE cm.course_id = ANY(%s::text[])
+            ORDER BY cm.course_id, cm.position ASC, cm.created_at ASC,
+                     l.position ASC, l.created_at ASC
+            """,
+            (course_ids,),
+        )
+        for row in cursor.fetchall():
+            course_id = row["module_course_id"]
+            module_id = row["module_id"]
+            module = module_map[course_id].get(module_id)
+            if module is None:
+                module = {
+                    "id": module_id,
+                    "course_id": course_id,
+                    "title": row["module_title"],
+                    "position": row["module_position"],
+                    "created_at": row["module_created_at"],
+                    "lessons": [],
+                }
+                module_map[course_id][module_id] = module
+                modules_by_course[course_id].append(module)
+            if row["lesson_id"] is not None:
+                module["lessons"].append({
+                    "id": row["lesson_id"],
+                    "module_id": row["lesson_module_id"],
+                    "title": row["lesson_title"],
+                    "content": row["lesson_content"],
+                    "video_url": row["lesson_video_url"],
+                    "video_name": row["lesson_video_name"],
+                    "attachment_url": row["lesson_attachment_url"],
+                    "attachment_name": row["lesson_attachment_name"],
+                    "position": row["lesson_position"],
+                    "duration_minutes": row["lesson_duration_minutes"],
+                    "duration_seconds": row["lesson_duration_seconds"],
+                    "created_at": row["lesson_created_at"],
+                })
+
+    enrollments_by_course: dict[str, int] = {course_id: 0 for course_id in course_ids}
+    with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(
+            """
+            SELECT course_id, COUNT(*) AS enrollment_count
+            FROM enrollments
+            WHERE course_id = ANY(%s::text[])
+            GROUP BY course_id
+            """,
+            (course_ids,),
+        )
+        for row in cursor.fetchall():
+            enrollments_by_course[row["course_id"]] = int(row["enrollment_count"])
+
+    return [
+        _course_payload_from_components(
+            row,
+            modules_by_course[row["id"]],
+            reviews_by_course[row["id"]],
+            review_stats.get(row["id"], (0, 0.0))[0],
+            review_stats.get(row["id"], (0, 0.0))[1],
+            enrollments_by_course[row["id"]],
+        )
+        for row in course_rows
+    ]
 
 
 def get_course_modules_with_lessons(course_id: str) -> list[dict[str, Any]]:
@@ -1203,8 +1330,7 @@ def get_all_courses() -> list[dict[str, Any]]:
                 """
             )
             rows = cursor.fetchall()
-
-    return [_course_payload_from_row(row) for row in rows]
+            return _course_payloads_from_rows(connection, rows)
 
 
 def get_public_courses() -> list[dict[str, Any]]:
@@ -1219,8 +1345,7 @@ def get_public_courses() -> list[dict[str, Any]]:
                 """
             )
             rows = cursor.fetchall()
-
-    return [_course_payload_from_row(row) for row in rows]
+            return _course_payloads_from_rows(connection, rows)
 
 
 def get_public_platform_stats() -> dict[str, int | float | None]:
@@ -1270,8 +1395,7 @@ def get_courses_for_instructor(instructor_id: str) -> list[dict[str, Any]]:
                 (instructor_id,),
             )
             rows = cursor.fetchall()
-
-    return [_course_payload_from_row(row) for row in rows]
+            return _course_payloads_from_rows(connection, rows)
 
 
 def get_student_enrolled_courses(student_id: str) -> list[dict[str, Any]]:
@@ -1288,8 +1412,7 @@ def get_student_enrolled_courses(student_id: str) -> list[dict[str, Any]]:
                 (student_id,),
             )
             rows = cursor.fetchall()
-
-    return [_course_payload_from_row(row) for row in rows]
+            return _course_payloads_from_rows(connection, rows)
 
 
 def is_student_enrolled(student_id: str, course_id: str) -> bool:
