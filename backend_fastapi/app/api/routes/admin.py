@@ -54,6 +54,7 @@ from app.db import (
 from app.core.security import create_access_token, get_current_user
 from app.schemas.common import ApiErrorResponse, ApiSuccessResponse, validate_email
 from app.services.cloud_media_service import MediaProviderError, cleanup_course_media_assets, delete_cloud_media_asset
+from app.services.public_course_cache import invalidate_public_course_cache
 from app.services.email_service import EmailDeliveryError, create_verification_token, hash_verification_token, send_test_email, send_verification_email
 
 router = APIRouter()
@@ -211,6 +212,7 @@ async def admin_force_enrollment(student_id: str, payload: dict[str, str], autho
     course_id = payload.get("course_id", "")
     if not course_id or not force_student_enrollment(student_id, course_id):
         raise HTTPException(status_code=400, detail={"error": "Enrollment could not be created."})
+    invalidate_public_course_cache()
     return ApiSuccessResponse(data={"enrolled": True}, message="Student enrolled successfully.")
 
 
@@ -344,6 +346,7 @@ async def update_course_status_route(
     updated_course = update_course_status(course_id, payload.status)
     if updated_course is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "Course not found."})
+    invalidate_public_course_cache()
     return ApiSuccessResponse(
         data=updated_course,
         message="Course status updated successfully.",
@@ -365,6 +368,7 @@ async def update_admin_course(course_id: str, payload: AdminCourseUpdateRequest,
     updated_course = update_course_admin_fields(course_id, payload.instructor_id, payload.is_featured)
     if updated_course is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "Course not found."})
+    invalidate_public_course_cache()
     return ApiSuccessResponse(data=updated_course, message="Course administration fields updated successfully.")
 
 
@@ -393,6 +397,7 @@ async def delete_user_route(
     deleted = delete_user_by_id(user_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "User not found."})
+    invalidate_public_course_cache()
 
     cleanup_pending = False
     for asset in media_assets:
@@ -417,6 +422,7 @@ async def delete_admin_course(course_id: str, authorization: str | None = Header
     course_media_assets = get_course_media_assets(course_id)
     if not delete_course_record(course_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "Course not found."})
+    invalidate_public_course_cache()
     cleanup_errors = await cleanup_course_media_assets(course_media_assets, course_id)
     return ApiSuccessResponse(
         data={"deleted": True, "media_cleanup_pending": bool(cleanup_errors)},
@@ -571,6 +577,8 @@ async def admin_create_instructor(payload: AdminInstructorCreateRequest, authori
     if payload.course_ids and not reassign_instructor_courses(user["id"], payload.course_ids):
         delete_user_by_id(user["id"])
         raise HTTPException(status_code=400, detail={"error": "Course assignments could not be saved."})
+    if payload.course_ids:
+        invalidate_public_course_cache()
     await _send_managed_user_verification(user)
     instructor = next((item for item in get_admin_instructors() if item["id"] == user["id"]), None)
     return ApiSuccessResponse(data=instructor or _user_response(user), message="Instructor account created successfully.")
@@ -601,6 +609,7 @@ async def admin_delete_instructor(instructor_id: str, authorization: str | None 
         raise HTTPException(status_code=403, detail={"error": "Protected accounts cannot be deleted."})
     if not delete_user_by_id(instructor_id):
         raise HTTPException(status_code=404, detail={"error": "Instructor not found."})
+    invalidate_public_course_cache()
     return ApiSuccessResponse(data={"deleted": True}, message="Instructor account deleted successfully.")
 
 
@@ -609,6 +618,7 @@ async def admin_assign_instructor_courses(instructor_id: str, payload: Instructo
     _require_admin(authorization)
     if not reassign_instructor_courses(instructor_id, payload.course_ids):
         raise HTTPException(status_code=400, detail={"error": "Instructor or one or more courses were not found."})
+    invalidate_public_course_cache()
     return ApiSuccessResponse(data={"reassigned": True}, message="Instructor course assignments updated.")
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
 from app.core.security import get_current_user
@@ -24,6 +24,7 @@ from app.db import (
 )
 from app.schemas.common import ApiErrorResponse, ApiSuccessResponse
 from app.services.cloud_media_service import cleanup_course_media_assets
+from app.services.public_course_cache import get_public_courses_cached, invalidate_public_course_cache
 
 router = APIRouter()
 
@@ -75,10 +76,18 @@ def _get_current_user(authorization: str | None) -> dict[str, Any] | None:
     "/courses/public",
     response_model=ApiSuccessResponse[list[dict[str, Any]]],
     status_code=status.HTTP_200_OK,
-    responses={401: {"model": ApiErrorResponse}},
+    responses={304: {"description": "Public course catalog has not changed."}},
 )
-async def list_public_courses() -> ApiSuccessResponse[list[dict[str, Any]]]:
-    courses = get_public_courses()
+async def list_public_courses(request: Request, response: Response) -> ApiSuccessResponse[list[dict[str, Any]]] | Response:
+    courses, etag = get_public_courses_cached(get_public_courses)
+    cache_headers = {
+        "Cache-Control": "public, max-age=30, stale-while-revalidate=120",
+        "ETag": etag,
+    }
+    response.headers.update(cache_headers)
+    requested_etags = request.headers.get("if-none-match", "").split(",")
+    if any(tag.strip() == "*" or tag.strip().removeprefix("W/") == etag.removeprefix("W/") for tag in requested_etags):
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=cache_headers)
     return ApiSuccessResponse(
         data=courses,
         message="Published courses retrieved successfully.",
@@ -133,7 +142,7 @@ async def list_courses(authorization: str | None = Header(default=None, alias="A
 
     if current_user is None:
         return ApiSuccessResponse(
-            data=get_public_courses(),
+            data=get_public_courses_cached(get_public_courses)[0],
             message="Published courses retrieved successfully.",
         )
 
@@ -145,7 +154,7 @@ async def list_courses(authorization: str | None = Header(default=None, alias="A
         data = get_courses_for_instructor(current_user["id"])
         message = "Instructor courses retrieved successfully."
     else:
-        data = get_public_courses()
+        data = get_public_courses_cached(get_public_courses)[0]
         message = "Published courses retrieved successfully."
 
     return ApiSuccessResponse(data=data, message=message)
@@ -189,6 +198,7 @@ async def submit_course_review(course_id: str, payload: CourseReviewRequest, aut
     review = create_course_review(current_user["id"], course_id, payload.rating, payload.comment)
     if review is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "Review could not be saved."})
+    invalidate_public_course_cache()
 
     return ApiSuccessResponse(data=review, message="Course review submitted successfully.")
 
@@ -213,6 +223,7 @@ async def enroll_in_course(course_id: str, authorization: str | None = Header(de
     enrollment = upsert_enrollment(current_user["id"], course_id)
     if enrollment is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"error": "Enrollment could not be created."})
+    invalidate_public_course_cache()
 
     return ApiSuccessResponse(data=enrollment, message="Enrollment created successfully.")
 
@@ -233,6 +244,7 @@ async def unenroll_from_course(course_id: str, authorization: str | None = Heade
     deleted = delete_enrollment(current_user["id"], course_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "Enrollment not found."})
+    invalidate_public_course_cache()
 
     return ApiSuccessResponse(data={"deleted": True}, message="Enrollment removed successfully.")
 
@@ -282,6 +294,7 @@ async def create_course(payload: CourseCreateRequest, authorization: str | None 
     }
 
     created_course = create_course_record(course_data)
+    invalidate_public_course_cache()
     return ApiSuccessResponse(
         data=created_course,
         message="Course created successfully.",
@@ -311,6 +324,7 @@ async def update_course(course_id: str, payload: CourseCreateRequest, authorizat
     updated_payload["instructor_id"] = existing_course["instructor_id"]
     updated_payload["difficulty"] = updated_payload.get("difficulty") or existing_course.get("difficulty") or "Beginner"
     updated_course = create_course_record(updated_payload)
+    invalidate_public_course_cache()
     return ApiSuccessResponse(data=updated_course, message="Course updated successfully.")
 
 
@@ -339,6 +353,7 @@ async def delete_course(course_id: str, authorization: str | None = Header(defau
     deleted = delete_course_record(course_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "Course not found."})
+    invalidate_public_course_cache()
 
     cleanup_errors = await cleanup_course_media_assets(course_media_assets, course_id)
 

@@ -6,9 +6,11 @@ import jwt
 from fastapi.testclient import TestClient
 
 from app import db
+from app.api.routes import courses as courses_routes
 from app.core.config import settings
 from app.core.security import create_access_token
 from app.main import app
+from app.services.public_course_cache import invalidate_public_course_cache
 
 client = TestClient(app)
 
@@ -127,6 +129,55 @@ def test_database_pool_exhaustion_returns_sanitized_503(monkeypatch) -> None:
     assert response.status_code == 503
     assert response.json() == {'success': False, 'message': 'Database temporarily unavailable.'}
     assert 'pool details' not in response.text
+
+
+def test_public_course_cache_etag_and_invalidation(monkeypatch) -> None:
+    invalidate_public_course_cache()
+    loads = []
+
+    def load_courses():
+        loads.append(True)
+        return [{'id': 'public-course', 'description': 'A public course'}]
+
+    monkeypatch.setattr(courses_routes, 'get_public_courses', load_courses)
+    first = client.get('/api/courses/public')
+    etag = first.headers['etag']
+    unchanged = client.get('/api/courses/public', headers={'If-None-Match': etag})
+
+    assert first.status_code == 200
+    assert first.headers['cache-control'] == 'public, max-age=30, stale-while-revalidate=120'
+    assert unchanged.status_code == 304
+    assert len(loads) == 1
+
+    invalidate_public_course_cache()
+    refreshed = client.get('/api/courses/public')
+    assert refreshed.status_code == 200
+    assert len(loads) == 2
+    invalidate_public_course_cache()
+
+
+def test_public_course_response_is_gzipped_and_cors_preflight_cached(monkeypatch) -> None:
+    invalidate_public_course_cache()
+    monkeypatch.setattr(
+        courses_routes,
+        'get_public_courses',
+        lambda: [{'id': 'public-course', 'description': 'x' * 1000}],
+    )
+    compressed = client.get('/api/courses/public', headers={'Accept-Encoding': 'gzip'})
+    preflight = client.options(
+        '/api/courses/public',
+        headers={
+            'Origin': 'https://frontend-programers2.vercel.app',
+            'Access-Control-Request-Method': 'GET',
+        },
+    )
+
+    assert compressed.status_code == 200
+    assert compressed.headers['content-encoding'] == 'gzip'
+    assert compressed.json()['data'][0]['id'] == 'public-course'
+    assert preflight.status_code == 200
+    assert preflight.headers['access-control-max-age'] == '600'
+    invalidate_public_course_cache()
 
 
 def test_public_platform_stats_returns_aggregate_values() -> None:
