@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app import db
 from app.api.routes.admin import router as admin_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.courses import router as courses_router
@@ -95,7 +96,23 @@ async def root() -> dict[str, str]:
 
 
 @app.get("/health", response_model=ApiSuccessResponse[dict[str, str]], tags=["meta"])
-async def health_check() -> ApiSuccessResponse[dict[str, str]]:
+def health_check() -> ApiSuccessResponse[dict[str, str]] | JSONResponse:
+    connection = None
+    try:
+        connection = db.get_connection()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+        finally:
+            connection.close()
+    except Exception:
+        logger.exception("Database health check failed.")
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"success": False, "message": "Database unreachable."},
+        )
+
     return ApiSuccessResponse[dict[str, str]](
         data={
             "status": "ok",

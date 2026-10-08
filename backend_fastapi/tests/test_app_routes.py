@@ -1,5 +1,6 @@
 import time
 import uuid
+from unittest.mock import MagicMock
 
 import jwt
 from fastapi.testclient import TestClient
@@ -79,12 +80,39 @@ def test_course_creation_preserves_explicit_difficulty_and_reviews() -> None:
     assert any(review_item['comment'] == 'Excellent course.' for review_item in fetched_course['reviews']), fetched_course
 
 
-def test_health_endpoint_returns_ok() -> None:
+def test_health_endpoint_returns_ok(monkeypatch) -> None:
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    monkeypatch.setattr('app.db.get_connection', lambda: connection)
+
     response = client.get('/health')
+
     assert response.status_code == 200
     payload = response.json()
     assert payload['success'] is True
-    assert payload['data']['status'] == 'ok'
+    assert payload['data'] == {
+        'status': 'ok',
+        'environment': settings.environment,
+        'mediaStorage': 'cloud',
+    }
+    assert payload['message'] == 'Backend is healthy.'
+    cursor.execute.assert_called_once_with('SELECT 1')
+    connection.close.assert_called_once()
+
+
+def test_health_endpoint_returns_sanitized_503_when_database_fails(monkeypatch, caplog) -> None:
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    cursor.execute.side_effect = RuntimeError('db host and secret')
+    monkeypatch.setattr('app.db.get_connection', lambda: connection)
+
+    response = client.get('/health')
+
+    assert response.status_code == 503
+    assert response.json() == {'success': False, 'message': 'Database unreachable.'}
+    assert 'db host and secret' in caplog.text
+    assert 'db host and secret' not in response.text
+    connection.close.assert_called_once()
 
 
 def test_public_platform_stats_returns_aggregate_values() -> None:
