@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -20,6 +21,7 @@ from app.schemas.common import ApiSuccessResponse
 
 logger = logging.getLogger("app.main")
 logging.basicConfig(level=logging.INFO)
+PERFORMANCE_TIMING_LOGS_ENABLED = os.getenv("PERFORMANCE_TIMING_LOGS", "").strip().lower() in {"1", "true", "yes"}
 
 app = FastAPI(
     title=settings.app_name,
@@ -88,6 +90,27 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"success": False, "error": message, "details": details},
     )
+
+
+@app.middleware("http")
+async def request_timing_middleware(request: Request, call_next):
+    if not PERFORMANCE_TIMING_LOGS_ENABLED:
+        return await call_next(request)
+
+    started = time.perf_counter()
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        logger.info(
+            "http_request method=%s path=%s status=%s duration_ms=%.2f",
+            request.method,
+            request.url.path,
+            status_code,
+            (time.perf_counter() - started) * 1000,
+        )
 
 
 @app.get("/", tags=["meta"])

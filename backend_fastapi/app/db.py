@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 import hashlib
 import hmac
+import logging
+import os
 import secrets
+import time
 import uuid
 from typing import Any
 
@@ -11,6 +14,9 @@ import psycopg2
 from psycopg2.extras import Json, RealDictCursor
 
 from app.core.config import settings
+
+logger = logging.getLogger("app.db")
+_PERFORMANCE_TIMING_LOGS_ENABLED = os.getenv("PERFORMANCE_TIMING_LOGS", "").strip().lower() in {"1", "true", "yes"}
 DEFAULT_ADMIN_SETTINGS: dict[str, Any] = {
     "platform_name": "Borhan",
     "support_email": "",
@@ -33,6 +39,41 @@ DEFAULT_ADMIN_SETTINGS: dict[str, Any] = {
 }
 
 
+class _TimedCursorMixin:
+    def execute(self, *args: Any, **kwargs: Any) -> Any:
+        started = time.perf_counter() if _PERFORMANCE_TIMING_LOGS_ENABLED else 0.0
+        try:
+            return super().execute(*args, **kwargs)
+        finally:
+            if _PERFORMANCE_TIMING_LOGS_ENABLED:
+                logger.info("db_query operation=execute duration_ms=%.2f", (time.perf_counter() - started) * 1000)
+
+    def executemany(self, *args: Any, **kwargs: Any) -> Any:
+        started = time.perf_counter() if _PERFORMANCE_TIMING_LOGS_ENABLED else 0.0
+        try:
+            return super().executemany(*args, **kwargs)
+        finally:
+            if _PERFORMANCE_TIMING_LOGS_ENABLED:
+                logger.info("db_query operation=executemany duration_ms=%.2f", (time.perf_counter() - started) * 1000)
+
+
+class _TimedCursor(_TimedCursorMixin, psycopg2.extensions.cursor):
+    pass
+
+
+class _TimedRealDictCursor(_TimedCursorMixin, RealDictCursor):
+    pass
+
+
+class _TimedConnection(psycopg2.extensions.connection):
+    def cursor(self, name=None, cursor_factory=None, withhold=False):
+        if cursor_factory is RealDictCursor:
+            cursor_factory = _TimedRealDictCursor
+        elif cursor_factory is None:
+            cursor_factory = _TimedCursor
+        return super().cursor(name, cursor_factory, withhold)
+
+
 def _normalize_difficulty(value: Any) -> str:
     if value is None:
         return 'Beginner'
@@ -52,7 +93,16 @@ def _normalize_difficulty(value: Any) -> str:
 
 
 def get_connection():
-    connection = psycopg2.connect(settings.database_url, connect_timeout=5)
+    started = time.perf_counter() if _PERFORMANCE_TIMING_LOGS_ENABLED else 0.0
+    try:
+        connection = psycopg2.connect(
+            settings.database_url,
+            connect_timeout=5,
+            connection_factory=_TimedConnection,
+        )
+    finally:
+        if _PERFORMANCE_TIMING_LOGS_ENABLED:
+            logger.info("db_connection_acquire duration_ms=%.2f", (time.perf_counter() - started) * 1000)
     connection.autocommit = False
     return connection
 
