@@ -114,24 +114,6 @@ class LeaderboardEntryRead(BaseSchema):
     current_streak: int
 
 
-class SubscriptionCreate(BaseSchema):
-    plan_name: str = Field(..., min_length=1, max_length=120)
-    price: Decimal = Field(..., ge=0, le=99999999.99)
-    duration_days: int = Field(..., ge=1, le=36500)
-
-
-class SubscriptionRead(BaseSchema):
-    id: str
-    student_id: str
-    plan_name: str
-    price: Decimal
-    duration_days: int
-    start_date: datetime
-    end_date: datetime
-    status: str
-    created_at: datetime
-
-
 class CourseDiscussionCreate(BaseSchema):
     lesson_id: str | None = Field(default=None, min_length=1)
     title: str = Field(..., min_length=1, max_length=255)
@@ -160,3 +142,31 @@ class CourseDiscussionRead(BaseSchema):
     title: str
     content: str
     created_at: datetime
+
+
+class SubscriptionPlanCreate(BaseSchema):
+    name: str = Field(..., min_length=1, max_length=120)
+    description: str = Field(default="", max_length=1000)
+    price: Decimal = Field(..., ge=0, le=99999999.99)
+    duration_days: int | None = Field(default=None, ge=1, le=36500)
+    is_active: bool = True
+
+
+class SubscriptionPlanUpdate(BaseSchema):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=1000)
+    price: Decimal | None = Field(default=None, ge=0, le=99999999.99)
+    duration_days: int | None = Field(default=None, ge=1, le=36500)
+    is_active: bool | None = None
+
+
+class SubscriptionPlanRead(BaseSchema):
+    id: str
+    name: str
+    description: str
+    price: Decimal
+    duration_days: int | None
+    is_active: bool
+    created_by: str | None
+    created_at: datetime
+    updated_at: datetime

@@ -23,8 +23,9 @@ from app.schemas.lms import (
     QuizSubmit,
     QuizUpdate,
     StudentStatsRead,
-    SubscriptionCreate,
-    SubscriptionRead,
+    SubscriptionPlanCreate,
+    SubscriptionPlanRead,
+    SubscriptionPlanUpdate,
 )
 from app.services import lms_service
 
@@ -269,19 +270,53 @@ async def leaderboard(
     return ApiSuccessResponse(data=lms_service.get_leaderboard(limit), message="Leaderboard retrieved successfully.")
 
 
-@router.get("/subscriptions/me", response_model=ApiSuccessResponse[list[SubscriptionRead]])
-async def get_my_subscriptions(authorization: str | None = Header(default=None, alias="Authorization")) -> ApiSuccessResponse[list[SubscriptionRead]]:
+@router.get("/subscription-plans", response_model=ApiSuccessResponse[list[SubscriptionPlanRead]])
+async def get_subscription_plans(authorization: str | None = Header(default=None, alias="Authorization")) -> ApiSuccessResponse[list[SubscriptionPlanRead]]:
     user = _current_user(authorization)
-    _require_role(user, {"student"}, "Student access required.")
-    return ApiSuccessResponse(data=lms_service.get_active_subscriptions(user["id"]), message="Active subscriptions retrieved successfully.")
+    _require_role(user, AUTHENTICATED_ROLES, "Authenticated access required.")
+    return ApiSuccessResponse(
+        data=lms_service.list_subscription_plans(
+            include_inactive=user["role"] in MANAGER_ROLES,
+            creator_id=user["id"] if user["role"] == "instructor" else None,
+        ),
+        message="Subscription plans retrieved successfully.",
+    )
 
 
-@router.post("/subscriptions", response_model=ApiSuccessResponse[SubscriptionRead], status_code=status.HTTP_201_CREATED)
-async def create_or_renew_subscription(payload: SubscriptionCreate, authorization: str | None = Header(default=None, alias="Authorization")) -> ApiSuccessResponse[SubscriptionRead]:
+@router.post("/subscription-plans", response_model=ApiSuccessResponse[SubscriptionPlanRead], status_code=status.HTTP_201_CREATED)
+async def create_subscription_plan(payload: SubscriptionPlanCreate, authorization: str | None = Header(default=None, alias="Authorization")) -> ApiSuccessResponse[SubscriptionPlanRead]:
     user = _current_user(authorization)
-    _require_role(user, {"student"}, "Student access required.")
-    subscription = lms_service.create_subscription(user["id"], sanitize_text(payload.plan_name, 120), payload.price, payload.duration_days)
-    return ApiSuccessResponse(data=subscription, message="Subscription created successfully.")
+    _require_role(user, MANAGER_ROLES, "Instructor or administrator access required.")
+    values = payload.model_dump()
+    values["name"] = sanitize_text(payload.name, 120)
+    values["description"] = sanitize_text(payload.description, 1000)
+    plan = lms_service.create_subscription_plan(user["id"], values)
+    return ApiSuccessResponse(data=plan, message="Subscription plan created successfully.")
+
+
+@router.patch("/subscription-plans/{plan_id}", response_model=ApiSuccessResponse[SubscriptionPlanRead])
+async def update_subscription_plan(plan_id: str, payload: SubscriptionPlanUpdate, authorization: str | None = Header(default=None, alias="Authorization")) -> ApiSuccessResponse[SubscriptionPlanRead]:
+    user = _current_user(authorization)
+    _require_role(user, MANAGER_ROLES, "Instructor or administrator access required.")
+    values = payload.model_dump(exclude_unset=True)
+    if "name" in values:
+        values["name"] = sanitize_text(values["name"], 120)
+    if "description" in values:
+        values["description"] = sanitize_text(values["description"], 1000)
+    plan = lms_service.update_subscription_plan(plan_id, user["id"], user["role"] == "admin", values)
+    if plan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "Subscription plan not found or not manageable."})
+    return ApiSuccessResponse(data=plan, message="Subscription plan updated successfully.")
+
+
+@router.delete("/subscription-plans/{plan_id}", response_model=ApiSuccessResponse[dict[str, bool]])
+async def delete_subscription_plan(plan_id: str, authorization: str | None = Header(default=None, alias="Authorization")) -> ApiSuccessResponse[dict[str, bool]]:
+    user = _current_user(authorization)
+    _require_role(user, MANAGER_ROLES, "Instructor or administrator access required.")
+    deleted = lms_service.delete_subscription_plan(plan_id, user["id"], user["role"] == "admin")
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "Subscription plan not found or not manageable."})
+    return ApiSuccessResponse(data={"deleted": True}, message="Subscription plan deleted successfully.")
 
 
 @router.get("/courses/{course_id}/discussions", response_model=ApiSuccessResponse[list[CourseDiscussionRead]])

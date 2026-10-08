@@ -123,20 +123,37 @@ def test_lms_quiz_gamification_subscription_and_discussion_workflow() -> None:
         assert leaderboard.status_code == 200, leaderboard.text
         assert any(entry["student_id"] == student_id and entry["points"] == 3 for entry in leaderboard.json()["data"])
 
-        subscription = client.post(
+        student_plans = client.get("/api/subscription-plans", headers=student_headers)
+        assert student_plans.status_code == 200, student_plans.text
+        assert [plan["id"] for plan in student_plans.json()["data"]] == ["free-plan"]
+        assert client.get("/api/subscriptions/me", headers=student_headers).status_code == 404
+        assert client.post(
+            "/api/subscription-plans",
+            headers=student_headers,
+            json={"name": "Blocked", "description": "", "price": 10, "duration_days": 30},
+        ).status_code == 403
+        assert client.post(
             "/api/subscriptions",
             headers=student_headers,
-            json={"plan_name": "Monthly", "price": 9.99, "duration_days": 30},
+            json={"plan_name": "Blocked", "price": 10, "duration_days": 30},
+        ).status_code == 404
+
+        created_plan = client.post(
+            "/api/subscription-plans",
+            headers=instructor_headers,
+            json={"name": "Monthly", "description": "Monthly access", "price": 9.99, "duration_days": 30},
         )
-        assert subscription.status_code == 201, subscription.text
-        assert len(client.get("/api/subscriptions/me", headers=student_headers).json()["data"]) == 1
-        renewed = client.post(
-            "/api/subscriptions",
-            headers=student_headers,
-            json={"plan_name": "Monthly renewal", "price": 9.99, "duration_days": 30},
+        assert created_plan.status_code == 201, created_plan.text
+        plan_id = created_plan.json()["data"]["id"]
+        assert len(client.get("/api/subscription-plans", headers=student_headers).json()["data"]) == 2
+        deactivated = client.patch(
+            f"/api/subscription-plans/{plan_id}",
+            headers=instructor_headers,
+            json={"is_active": False},
         )
-        assert renewed.status_code == 201, renewed.text
-        assert len(client.get("/api/subscriptions/me", headers=student_headers).json()["data"]) == 1
+        assert deactivated.status_code == 200, deactivated.text
+        assert [plan["id"] for plan in client.get("/api/subscription-plans", headers=student_headers).json()["data"]] == ["free-plan"]
+        assert client.delete(f"/api/subscription-plans/{plan_id}", headers=instructor_headers).status_code == 200
 
         discussion = client.post(
             f"/api/courses/{course['id']}/discussions",

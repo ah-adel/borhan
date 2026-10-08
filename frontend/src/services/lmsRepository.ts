@@ -9,8 +9,7 @@ import type {
   QuizQuestion,
   QuizQuestionInput,
   StudentGamificationStats,
-  Subscription,
-  SubscriptionInput,
+  SubscriptionPlan,
 } from '@/types/lms';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
@@ -85,12 +84,23 @@ export function fetchLeaderboard(limit = 100): Promise<LeaderboardEntry[]> {
   return request(`/api/leaderboard?limit=${limit}`);
 }
 
-export function fetchMySubscriptions(): Promise<Subscription[]> {
-  return request('/api/subscriptions/me');
+export function fetchSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  return request('/api/subscription-plans');
 }
 
-export function createOrRenewSubscription(payload: SubscriptionInput): Promise<Subscription> {
-  return request('/api/subscriptions', jsonRequest('POST', payload));
+export function createSubscriptionPlan(payload: Pick<SubscriptionPlan, 'name' | 'description' | 'price' | 'duration_days' | 'is_active'>): Promise<SubscriptionPlan> {
+  return request('/api/subscription-plans', jsonRequest('POST', payload));
+}
+
+export function updateSubscriptionPlan(planId: string, payload: Partial<Pick<SubscriptionPlan, 'name' | 'description' | 'price' | 'duration_days' | 'is_active'>>): Promise<SubscriptionPlan> {
+  return request(`/api/subscription-plans/${encodeURIComponent(planId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteSubscriptionPlan(planId: string): Promise<{ deleted: boolean }> {
+  return request(`/api/subscription-plans/${encodeURIComponent(planId)}`, { method: 'DELETE' });
 }
 
 export function fetchCourseDiscussions(courseId: string, lessonId?: string | null): Promise<CourseDiscussion[]> {

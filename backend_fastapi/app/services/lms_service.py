@@ -299,28 +299,82 @@ def get_leaderboard(limit: int) -> list[dict[str, Any]]:
             return _all(cursor)
 
 
-def get_active_subscriptions(student_id: str) -> list[dict[str, Any]]:
+def list_subscription_plans(*, include_inactive: bool, creator_id: str | None = None) -> list[dict[str, Any]]:
+    query = "SELECT id, name, description, price, duration_days, is_active, created_by, created_at, updated_at FROM subscription_plans"
+    parameters: tuple[Any, ...] = ()
+    if creator_id is not None:
+        query += " WHERE created_by = %s OR id = 'free-plan'"
+        parameters = (creator_id,)
+    elif not include_inactive:
+        query += " WHERE is_active = TRUE"
+    query += " ORDER BY price, name, created_at"
     with get_connection() as connection:
         with connection.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(
-                "SELECT * FROM subscriptions WHERE student_id = %s AND status = 'active' AND start_date <= CURRENT_TIMESTAMP AND end_date >= CURRENT_TIMESTAMP ORDER BY end_date, created_at DESC",
-                (student_id,),
-            )
+            cursor.execute(query, parameters)
             return _all(cursor)
 
 
-def create_subscription(student_id: str, plan_name: str, price: Decimal, duration_days: int) -> dict[str, Any]:
-    subscription_id = str(uuid.uuid4())
+def create_subscription_plan(creator_id: str, values: dict[str, Any]) -> dict[str, Any]:
+    plan_id = str(uuid.uuid4())
     with get_connection() as connection:
         with connection.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute("UPDATE subscriptions SET status = 'renewed' WHERE student_id = %s AND status = 'active'", (student_id,))
             cursor.execute(
-                "INSERT INTO subscriptions (id, student_id, plan_name, price, duration_days, start_date, end_date, status) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + (%s * INTERVAL '1 day'), 'active') RETURNING *",
-                (subscription_id, student_id, plan_name, price, duration_days, duration_days),
+                "INSERT INTO subscription_plans (id, name, description, price, duration_days, is_active, created_by) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id, name, description, price, duration_days, is_active, created_by, created_at, updated_at",
+                (plan_id, values["name"], values["description"], values["price"], values["duration_days"], values["is_active"], creator_id),
             )
             result = dict(cursor.fetchone())
         connection.commit()
     return result
+
+
+def update_subscription_plan(plan_id: str, manager_id: str, is_admin: bool, values: dict[str, Any]) -> dict[str, Any] | None:
+    assignments = [f"{column} = %s" for column in values]
+    parameters = list(values.values())
+    if not assignments:
+        return get_subscription_plan_for_manager(plan_id, manager_id, is_admin)
+    assignments.append("updated_at = CURRENT_TIMESTAMP")
+    query = f"UPDATE subscription_plans SET {', '.join(assignments)} WHERE id = %s AND id <> 'free-plan'"
+    parameters.append(plan_id)
+    if not is_admin:
+        query += " AND created_by = %s"
+        parameters.append(manager_id)
+    query += " RETURNING id, name, description, price, duration_days, is_active, created_by, created_at, updated_at"
+    with get_connection() as connection:
+        with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query, tuple(parameters))
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            result = dict(row)
+        connection.commit()
+    return result
+
+
+def get_subscription_plan_for_manager(plan_id: str, manager_id: str, is_admin: bool) -> dict[str, Any] | None:
+    query = "SELECT id, name, description, price, duration_days, is_active, created_by, created_at, updated_at FROM subscription_plans WHERE id = %s"
+    parameters: tuple[Any, ...] = (plan_id,)
+    if not is_admin:
+        query += " AND created_by = %s"
+        parameters += (manager_id,)
+    with get_connection() as connection:
+        with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query, parameters)
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+
+def delete_subscription_plan(plan_id: str, manager_id: str, is_admin: bool) -> bool:
+    query = "DELETE FROM subscription_plans WHERE id = %s AND id <> 'free-plan'"
+    parameters: tuple[Any, ...] = (plan_id,)
+    if not is_admin:
+        query += " AND created_by = %s"
+        parameters += (manager_id,)
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(query, parameters)
+            deleted = cursor.rowcount > 0
+        connection.commit()
+    return deleted
 
 
 def list_course_discussions(course_id: str, lesson_id: str | None) -> list[dict[str, Any]]:

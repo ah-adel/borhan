@@ -77,7 +77,7 @@ export const NAV_ITEMS: NavItem[] = [
     labelKey: 'subscriptions',
     path: '/subscriptions',
     icon: CreditCard,
-    roles: ['student'],
+    roles: ['student', 'instructor', 'admin'],
   },
   {
     labelKey: 'settings',

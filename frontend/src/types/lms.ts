@@ -58,16 +58,16 @@ export type LeaderboardEntry = {
   current_streak: number;
 };
 
-export type Subscription = {
+export type SubscriptionPlan = {
   id: string;
-  student_id: string;
-  plan_name: string;
+  name: string;
+  description: string;
   price: DecimalValue;
-  duration_days: number;
-  start_date: string;
-  end_date: string;
-  status: string;
+  duration_days: number | null;
+  is_active: boolean;
+  created_by: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export type CourseDiscussion = {
@@ -104,12 +104,6 @@ export type QuizInput = {
   title: string;
   time_limit_minutes: number;
   passing_score: number;
-};
-
-export type SubscriptionInput = {
-  plan_name: string;
-  price: number;
-  duration_days: number;
 };
 
 export type CourseDiscussionInput = {

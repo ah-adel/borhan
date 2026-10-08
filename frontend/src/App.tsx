@@ -153,7 +153,7 @@ export default function App() {
               <Route
                 path="/subscriptions"
                 element={
-                  <ProtectedRoute allowedRoles={['student']}>
+                  <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
                     <SubscriptionsPage />
                   </ProtectedRoute>
                 }
