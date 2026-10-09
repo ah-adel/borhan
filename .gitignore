@@ -21,5 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+backups/
 .jwt_signing_key
 .jwt_signing_key.*.tmp
