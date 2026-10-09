@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { StudentsPage } from './StudentsPage';
 import { useTranslation } from '@/context/I18nContext';
 import { extractApiErrorMessage, errorMessage } from '@/lib/apiError';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -44,8 +45,8 @@ export function AdminStudentsPage() {
   const [messageIsError, setMessageIsError] = useState(false);
 
   const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
-    const token = window.sessionStorage.getItem('learnflow_session_token');
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const token = getSessionToken();
+    const response = await fetchWithSession(`${API_BASE_URL}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',

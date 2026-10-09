@@ -11,6 +11,7 @@ import {
 import type { AdminCourse } from '@/lib/adminCourseRepository';
 import { writeLocalSession } from '@/lib/localDb';
 import { useTranslation } from '@/context/I18nContext';
+import { getSessionToken, setSessionToken } from '@/lib/sessionToken';
 
 export function AdminInstructorsEnhancements() {
   const { t, formatNumber, formatCurrency } = useTranslation();
@@ -55,9 +56,9 @@ export function AdminInstructorsEnhancements() {
   const impersonate = async (row: AdminInstructor) => {
     try {
       const session = await prepareInstructorImpersonation(row.id);
-      const adminToken = window.sessionStorage.getItem('learnflow_session_token');
+      const adminToken = getSessionToken();
       if (adminToken) window.sessionStorage.setItem('learnflow_admin_return_token', adminToken);
-      window.sessionStorage.setItem('learnflow_session_token', session.access_token);
+      setSessionToken(session.access_token, 'instructor');
       writeLocalSession({ userId: session.user_id, email: session.email });
       window.location.href = '/instructor';
     } catch (reason: unknown) {

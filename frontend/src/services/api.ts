@@ -1,4 +1,5 @@
 import { localizedRuntimeError } from '@/lib/errorMessages';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 import { createClient } from '@supabase/supabase-js';
 import { Upload } from 'tus-js-client';
 
@@ -33,7 +34,7 @@ export type DeleteCleanupResult = {
 
 const readBearerToken = () => {
   try {
-    return window.sessionStorage.getItem('learnflow_session_token') ?? '';
+    return getSessionToken() ?? '';
   } catch {
     return '';
   }
@@ -65,7 +66,7 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
 }
 
 export async function apiRequest<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
+  const response = await fetchWithSession(input, init);
   return parseApiResponse<T>(response);
 }
 

@@ -1,4 +1,5 @@
 import { apiRequest } from '@/services/api';
+import { getSessionToken } from '@/lib/sessionToken';
 import type {
   CourseDiscussion,
   CourseDiscussionInput,
@@ -17,7 +18,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, ''
 function authHeaders(): HeadersInit {
   const token = typeof window === 'undefined'
     ? ''
-    : window.sessionStorage.getItem('learnflow_session_token') ?? '';
+    : getSessionToken() ?? '';
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

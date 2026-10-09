@@ -18,6 +18,9 @@
     "videoUnavailable": "هذا الفيديو غير متاح لهذا الحساب.",
     "loadingVideo": "جارٍ تحميل الفيديو الآمن..."
   },
+  "rememberMe": {
+    "label": "تذكرني"
+  },
   "common": {
     "user": "مستخدم",
     "role": "الدور",

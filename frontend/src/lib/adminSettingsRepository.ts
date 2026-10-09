@@ -1,4 +1,5 @@
 import { extractApiErrorMessage } from '@/lib/apiError';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 
 export type AdminSettings = {
   platform_name: string;
@@ -27,8 +28,8 @@ export type StorageSnapshot = { videos: { bytes: number; files: number }; attach
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = window.sessionStorage.getItem('learnflow_session_token');
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers ?? {}) } });
+  const token = getSessionToken();
+  const response = await fetchWithSession(`${API_BASE_URL}${path}`, { ...options, cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers ?? {}) } });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(extractApiErrorMessage(payload, response.status));
   return (payload.data ?? payload) as T;

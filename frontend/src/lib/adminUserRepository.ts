@@ -1,4 +1,5 @@
 import { extractApiErrorMessage } from '@/lib/apiError';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -24,10 +25,10 @@ export type AdminUserCreate = {
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = window.sessionStorage.getItem('learnflow_session_token');
+  const token = getSessionToken();
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetchWithSession(`${API_BASE_URL}${path}`, {
       ...options,
       cache: 'no-store',
       headers: {

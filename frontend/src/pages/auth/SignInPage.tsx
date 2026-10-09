@@ -14,6 +14,7 @@ export function SignInPage() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,7 +46,7 @@ export function SignInPage() {
 
     setLoading(true);
 
-    const { error: signInError, mfaChallenge: nextChallenge, verificationRequired: needsVerification } = await signIn(sanitizedEmail, password.trim());
+    const { error: signInError, mfaChallenge: nextChallenge, verificationRequired: needsVerification } = await signIn(sanitizedEmail, password.trim(), rememberMe);
     if (nextChallenge) {
       setMfaChallenge(nextChallenge);
       setLoading(false);
@@ -72,7 +73,7 @@ export function SignInPage() {
       subtitle={t('auth.signInSubtitle')}
     >
       {mfaChallenge ? (
-        <MfaChallengeForm challenge={mfaChallenge} onCancel={() => setMfaChallenge(null)} />
+        <MfaChallengeForm challenge={mfaChallenge} rememberMe={mfaChallenge.rememberMe} onCancel={() => setMfaChallenge(null)} />
       ) : (
       <>
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -141,6 +142,17 @@ export function SignInPage() {
             </button>
           </div>
         </div>
+
+        <label htmlFor="remember-me" className="flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+          <input
+            id="remember-me"
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(event) => setRememberMe(event.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          {t('rememberMe.label')}
+        </label>
 
         <button type="submit" disabled={loading} className="btn-primary w-full">
           {loading ? (

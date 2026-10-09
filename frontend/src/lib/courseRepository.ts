@@ -10,6 +10,7 @@ import {
   invalidateStudentEnrollmentCache,
   loadCachedData,
 } from '@/lib/dataCache';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -137,7 +138,7 @@ export function normalizeCourseLessonMediaPaths(course: LocalCourseRecord): Loca
 
 async function getAuthToken(): Promise<string> {
   if (typeof window === 'undefined') return '';
-  return window.sessionStorage.getItem('learnflow_session_token') ?? '';
+  return getSessionToken() ?? '';
 }
 
 export async function saveCourseForInstructor(course: LocalCourseRecord, instructorId: string, mode: 'create' | 'update' = 'create'): Promise<LocalCourseRecord> {
@@ -145,7 +146,7 @@ export async function saveCourseForInstructor(course: LocalCourseRecord, instruc
   const token = await getAuthToken();
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/courses${mode === 'update' ? `/${encodeURIComponent(normalizedCourse.id)}` : ''}`, {
+    const response = await fetchWithSession(`${API_BASE_URL}/api/courses${mode === 'update' ? `/${encodeURIComponent(normalizedCourse.id)}` : ''}`, {
       method: mode === 'update' ? 'PUT' : 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -228,7 +229,7 @@ export async function fetchCourseById(courseId: string): Promise<LocalCourseReco
   const token = await getAuthToken();
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/courses/${encodeURIComponent(courseId.trim())}`, {
+    const response = await fetchWithSession(`${API_BASE_URL}/api/courses/${encodeURIComponent(courseId.trim())}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       cache: 'no-store',
     });
@@ -249,7 +250,7 @@ export async function fetchInstructorCourses(instructorId: string): Promise<Loca
     const token = await getAuthToken();
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/courses`, {
+      const response = await fetchWithSession(`${API_BASE_URL}/api/courses`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -278,7 +279,7 @@ export async function fetchInstructorCourses(instructorId: string): Promise<Loca
 export async function fetchPublishedCourses(): Promise<LocalCourseRecord[]> {
   return loadCachedData('published-courses', async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/courses/public`, {
+      const response = await fetchWithSession(`${API_BASE_URL}/api/courses/public`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -307,7 +308,7 @@ export async function enrollStudentInCourse(studentId: string, courseId: string)
   const token = await getAuthToken();
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/courses/${encodeURIComponent(courseId)}/enroll`, {
+    const response = await fetchWithSession(`${API_BASE_URL}/api/courses/${encodeURIComponent(courseId)}/enroll`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -333,7 +334,7 @@ export async function unenrollStudentFromCourse(studentId: string, courseId: str
   const token = await getAuthToken();
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/courses/${encodeURIComponent(courseId)}/enroll`, {
+    const response = await fetchWithSession(`${API_BASE_URL}/api/courses/${encodeURIComponent(courseId)}/enroll`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -360,7 +361,7 @@ export async function fetchStudentEnrolledCourses(studentId: string): Promise<Lo
     const token = await getAuthToken();
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/student/courses`, {
+      const response = await fetchWithSession(`${API_BASE_URL}/api/student/courses`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

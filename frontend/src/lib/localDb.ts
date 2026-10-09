@@ -7,6 +7,7 @@ import type {
   User,
 } from '@/types';
 import { invalidateInstructorCourseCache, invalidateStudentEnrollmentCache } from '@/lib/dataCache';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 
 export const localDatabaseConfig = {
   provider: 'sqlite',
@@ -831,12 +832,12 @@ export async function deleteCourseRecord(course: LocalCourseRecord) {
   const currentCourses = readLocalCourses();
   const payloadCourse = currentCourses.find((item) => item.id === course.id) ?? course;
 
-  const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('learnflow_session_token') ?? '' : '';
+  const token = getSessionToken() ?? '';
   if (!token) {
     throw new Error('Authentication is required to delete a course.');
   }
 
-  const response = await fetch(`${(import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')}/api/courses/${encodeURIComponent(payloadCourse.id)}`, {
+  const response = await fetchWithSession(`${(import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')}/api/courses/${encodeURIComponent(payloadCourse.id)}`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',

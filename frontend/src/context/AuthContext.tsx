@@ -9,16 +9,15 @@ import {
 import type { Profile, UserRole } from '@/types/database.types';
 import {
   isPublicSignupRole,
-  readLocalSession,
   writeLocalSession,
 } from '@/lib/localDb';
 import { localizedRuntimeError } from '@/lib/errorMessages';
+import { clearSessionToken, fetchWithSession, getSessionToken, isSessionTokenPersistent, setSessionToken } from '@/lib/sessionToken';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 type ApiRequestError = Error & { code?: string };
 
 async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = window.sessionStorage.getItem('learnflow_session_token');
   const controller = new AbortController();
   let timedOut = false;
   const timeoutId = window.setTimeout(() => {
@@ -28,15 +27,16 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetchWithSession(`${API_BASE_URL}${path}`, {
       ...options,
       cache: 'no-store',
       signal: options.signal ?? controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers ?? {}),
       },
+    }, {
+      useSessionToken: !['/api/auth/sign-in', '/api/auth/sign-up', '/api/auth/verify-email', '/api/auth/resend-verification'].includes(path),
     });
   } catch (error) {
     throw new Error(localizedRuntimeError(timedOut ? new Error('Request timed out') : error));
@@ -74,6 +74,7 @@ type AuthApiResponse = {
     authenticated: boolean;
     access_token: string;
     token_type: 'bearer';
+    expires_at?: string;
   };
   profile?: Profile | null;
   challenge_token?: string;
@@ -83,6 +84,7 @@ type AuthApiResponse = {
 export type MfaChallenge = {
   challengeToken: string;
   setupRequired: boolean;
+  rememberMe?: boolean;
   secret?: string;
   otpauthUrl?: string;
 };
@@ -146,7 +148,7 @@ interface AuthContextValue {
   user: LocalUser | null;
   profile: Profile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<AuthActionResult>;
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<AuthActionResult>;
   signUp: (
     email: string,
     password: string,
@@ -155,7 +157,7 @@ interface AuthContextValue {
   ) => Promise<AuthActionResult>;
   verifyEmail: (token: string) => Promise<{ error: string | null }>;
   resendVerificationEmail: (email: string) => Promise<{ error: string | null }>;
-  completeMfa: (challengeToken: string, code: string) => Promise<{ error: string | null }>;
+  completeMfa: (challengeToken: string, code: string, rememberMe?: boolean) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateAccount: (fullName: string, email: string, bio: string) => Promise<{ error: string | null }>;
@@ -208,9 +210,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const restoreSession = async () => {
       try {
-        const currentSession = readLocalSession();
-        if (!currentSession?.userId || !window.sessionStorage.getItem('learnflow_session_token')) {
-          window.sessionStorage.removeItem('learnflow_session_token');
+        if (!getSessionToken()) {
+          clearSessionToken();
           writeLocalSession(null);
           setSession(null);
           setProfile(null);
@@ -218,18 +219,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const profileFromBackend = await loadProfile(currentSession.userId);
-        if (!profileFromBackend) {
-          window.sessionStorage.removeItem('learnflow_session_token');
+        const restored = await apiRequest<{ user: LocalUser; profile: Profile | null }>('/api/auth/me');
+        if (!restored.user?.id || !restored.profile) {
+          clearSessionToken();
           writeLocalSession(null);
           setSession(null);
           setProfile(null);
           return;
         }
-        setSession({ userId: currentSession.userId, email: currentSession.email });
-        setProfile(profileFromBackend);
+        const restoredSession = { userId: restored.user.id, email: restored.user.email };
+        if (restored.user.role === 'admin' && isSessionTokenPersistent()) {
+          setSessionToken(getSessionToken() ?? '', 'admin');
+        }
+        writeLocalSession(restoredSession);
+        setSession(restoredSession);
+        setProfile(restored.profile);
       } catch (error) {
         console.error('Failed to restore backend session:', error);
+        clearSessionToken();
+        writeLocalSession(null);
         setSession(null);
         setProfile(null);
       } finally {
@@ -240,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void restoreSession();
   }, []);
 
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string, rememberMe = false) {
     if (typeof window === 'undefined') {
       return { error: 'Local auth is only available in the browser.' };
     }
@@ -248,11 +256,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const authResponse = await apiRequest<AuthApiResponse>(`/api/auth/sign-in`, {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, remember_me: rememberMe }),
       });
 
       if (authResponse?.challenge_token) {
-        return { error: null, mfaChallenge: await prepareMfaChallenge(authResponse) };
+        return { error: null, mfaChallenge: { ...await prepareMfaChallenge(authResponse), rememberMe } };
       }
 
       const user = authResponse?.user;
@@ -261,7 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const nextSession = { userId: user.id, email: user.email };
-      window.sessionStorage.setItem('learnflow_session_token', authResponse.session.access_token);
+      setSessionToken(authResponse.session.access_token, user.role, rememberMe);
       writeLocalSession(nextSession);
       setSession(nextSession);
       setProfile(authResponse?.profile ?? buildProfile(user.id, user.email, user.role));
@@ -309,7 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const nextSession = { userId: user.id, email: user.email };
-      window.sessionStorage.setItem('learnflow_session_token', authResponse.session.access_token);
+      setSessionToken(authResponse.session.access_token, user.role);
       writeLocalSession(nextSession);
       setSession(nextSession);
       setProfile(authResponse?.profile ?? buildProfile(user.id, fullName, user.role));
@@ -344,12 +352,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function completeMfa(challengeToken: string, code: string) {
+  async function completeMfa(challengeToken: string, code: string, rememberMe = false) {
     try {
       const authResponse = await apiRequest<AuthApiResponse>('/api/auth/mfa/verify', {
         method: 'POST',
         headers: { Authorization: `Bearer ${challengeToken}` },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, remember_me: rememberMe }),
       });
       const user = authResponse.user;
       const accessToken = authResponse.session?.access_token;
@@ -357,7 +365,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: 'The server did not complete MFA authentication.' };
       }
 
-      window.sessionStorage.setItem('learnflow_session_token', accessToken);
+      setSessionToken(accessToken, user.role, rememberMe);
       writeLocalSession({ userId: user.id, email: user.email });
       setSession({ userId: user.id, email: user.email });
       setProfile(authResponse.profile);
@@ -372,11 +380,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const localKeys = ['learnflow_session', 'learnflow_session_token', 'access_token', 'token'];
+    const localKeys = ['learnflow_session', 'access_token', 'token'];
     localKeys.forEach((key) => {
       window.sessionStorage.removeItem(key);
       window.localStorage.removeItem(key);
     });
+    clearSessionToken();
 
     writeLocalSession(null);
     setProfile(null);
@@ -392,6 +401,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     } finally {
       window.location.href = '/';
+      window.location.href = '/auth/sign-in';
     }
   }
 
@@ -409,7 +419,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ full_name: fullName, email, bio }),
       });
       if (response.verification_required) {
-        window.sessionStorage.removeItem('learnflow_session_token');
+        clearSessionToken();
         writeLocalSession(null);
         setSession(null);
         setProfile(null);
@@ -422,7 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     } catch (error) {
       if ((error as ApiRequestError)?.code === 'email_not_verified') {
-        window.sessionStorage.removeItem('learnflow_session_token');
+        clearSessionToken();
         writeLocalSession(null);
         setSession(null);
         setProfile(null);

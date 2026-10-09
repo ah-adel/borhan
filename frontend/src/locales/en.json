@@ -18,6 +18,9 @@
     "videoUnavailable": "This video is not available for this account.",
     "loadingVideo": "Loading secure video..."
   },
+  "rememberMe": {
+    "label": "Remember me"
+  },
   "common": {
     "user": "User",
     "role": "Role",

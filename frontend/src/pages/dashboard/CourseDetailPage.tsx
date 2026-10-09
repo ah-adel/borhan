@@ -38,6 +38,7 @@ import {
 import { getSignedMediaUrl, uploadMediaFile } from '@/services/api';
 import { fetchCourseById } from '@/lib/courseRepository';
 import { getCourseCategoryLabel, getCourseDifficultyLabel, getLessonTypeLabel } from '@/lib/courseLabels';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 
 type CourseLesson = CourseLessonRecord;
 type CourseModule = CourseModuleRecord;
@@ -895,9 +896,7 @@ export function CourseDetailPage() {
       return;
     }
 
-    const token = typeof window !== 'undefined'
-      ? window.sessionStorage.getItem('learnflow_session_token') ?? ''
-      : '';
+    const token = getSessionToken() ?? '';
 
     if (!token) {
       setSaveError(t('courseDetail.authRequired'));
@@ -906,7 +905,7 @@ export function CourseDetailPage() {
 
     try {
       setSaveError(null);
-      const response = await fetch(`${API_BASE_URL}/api/courses/${encodeURIComponent(course.id)}/reviews`, {
+      const response = await fetchWithSession(`${API_BASE_URL}/api/courses/${encodeURIComponent(course.id)}/reviews`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

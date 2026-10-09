@@ -1,3 +1,5 @@
+import { fetchWithSession, getSessionToken, handleSessionUnauthorized } from '@/lib/sessionToken';
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 const resolveApiUrl = (endpoint: string) => {
@@ -54,7 +56,7 @@ export async function uploadMediaFile(
 
     const bearerToken = (() => {
       try {
-        return window.sessionStorage.getItem('learnflow_session_token') ?? '';
+        return getSessionToken() ?? '';
       } catch {
         return '';
       }
@@ -64,6 +66,7 @@ export async function uploadMediaFile(
     }
 
     xhr.addEventListener('load', () => {
+      handleSessionUnauthorized(xhr.status, bearerToken || null);
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const payload = JSON.parse(xhr.responseText) as { success?: boolean; data?: { url?: string; error?: string } };
@@ -113,7 +116,7 @@ export async function deleteEntity(entity: Record<string, unknown> | null) {
     return { success: true, data: { deletedFiles: [], purgedCollections: [], errors: [] } };
   }
 
-  const response = await fetch(resolveApiUrl('/api/media/delete'), {
+  const response = await fetchWithSession(resolveApiUrl('/api/media/delete'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

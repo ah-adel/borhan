@@ -1,6 +1,7 @@
 import { fetchAdminCourses } from '@/lib/adminCourseRepository';
 import { invalidateAdminListCaches, loadAdminList } from '@/lib/adminListCache';
 import { extractApiErrorMessage } from '@/lib/apiError';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -27,8 +28,8 @@ export type AdminInstructor = {
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = window.sessionStorage.getItem('learnflow_session_token');
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers ?? {}) } });
+  const token = getSessionToken();
+  const response = await fetchWithSession(`${API_BASE_URL}${path}`, { ...options, cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers ?? {}) } });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(extractApiErrorMessage(payload, response.status));
   return (payload.data ?? payload) as T;

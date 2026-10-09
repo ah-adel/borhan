@@ -1,6 +1,7 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 import { localizedRuntimeError } from '@/lib/errorMessages';
 import { invalidateAdminListCaches, loadAdminList } from '@/lib/adminListCache';
+import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 
 export type AdminCourseStatus = 'draft' | 'published' | 'review' | 'archived' | 'rejected';
 
@@ -28,8 +29,8 @@ export type AdminCourseInspector = {
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = window.sessionStorage.getItem('learnflow_session_token');
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const token = getSessionToken();
+  const response = await fetchWithSession(`${API_BASE_URL}${path}`, {
     ...options,
     cache: 'no-store',
     headers: {

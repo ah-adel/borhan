@@ -5,10 +5,11 @@ import { useTranslation } from '@/context/I18nContext';
 
 type MfaChallengeFormProps = {
   challenge: MfaChallenge;
+  rememberMe?: boolean;
   onCancel?: () => void;
 };
 
-export function MfaChallengeForm({ challenge, onCancel }: MfaChallengeFormProps) {
+export function MfaChallengeForm({ challenge, rememberMe = false, onCancel }: MfaChallengeFormProps) {
   const { completeMfa } = useAuth();
   const { t } = useTranslation();
   const [code, setCode] = useState('');
@@ -19,7 +20,7 @@ export function MfaChallengeForm({ challenge, onCancel }: MfaChallengeFormProps)
     event.preventDefault();
     setError(null);
     setLoading(true);
-    const result = await completeMfa(challenge.challengeToken, code);
+    const result = await completeMfa(challenge.challengeToken, code, rememberMe);
     if (result.error) {
       setError(result.error);
       setLoading(false);
