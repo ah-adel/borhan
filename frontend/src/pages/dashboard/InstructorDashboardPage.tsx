@@ -18,6 +18,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation, type TranslationKey } from '@/context/I18nContext';
+import { SecureMediaLink } from '@/components/dashboard/SecureMediaLink';
 import { SecureVideoEmbed } from '@/components/dashboard/SecureVideoEmbed';
 import {
   createCourseForInstructor,
@@ -1584,14 +1585,25 @@ export function InstructorDashboardPage() {
                                     {lesson.attachmentName && (
                                       <p>
                                         {t('courseBuilder.attachmentName')}{' '}
-                                        <a
-                                          href={lesson.attachmentUrl ?? '#'}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="font-medium text-primary-600 underline dark:text-primary-300"
-                                        >
-                                          {lesson.attachmentName}
-                                        </a>
+                                        {lesson.attachmentUrl?.startsWith('cloud-asset:') ? (
+                                          <SecureMediaLink
+                                            assetUrl={lesson.attachmentUrl}
+                                            loadingLabel={t('courseDetail.openingAttachment')}
+                                            errorLabel={t('courseDetail.attachmentOpenError')}
+                                            className="font-medium text-primary-600 underline disabled:opacity-60 dark:text-primary-300"
+                                          >
+                                            {lesson.attachmentName}
+                                          </SecureMediaLink>
+                                        ) : (
+                                          <a
+                                            href={lesson.attachmentUrl ?? '#'}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="font-medium text-primary-600 underline dark:text-primary-300"
+                                          >
+                                            {lesson.attachmentName}
+                                          </a>
+                                        )}
                                       </p>
                                     )}
                                   </div>

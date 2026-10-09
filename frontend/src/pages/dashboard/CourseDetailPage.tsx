@@ -17,6 +17,7 @@ import {
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
+import { SecureMediaLink } from '@/components/dashboard/SecureMediaLink';
 import { SecureVideoEmbed } from '@/components/dashboard/SecureVideoEmbed';
 import { VideoPlayer } from '@/components/dashboard/VideoPlayer';
 import { DiscussionPanel } from '@/components/dashboard/lms/DiscussionPanel';
@@ -1228,15 +1229,27 @@ export function CourseDetailPage() {
                 </div>
 
                 {currentAttachmentUrl ? (
-                  <a
-                    href={currentAttachmentUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:border-gray-700 dark:bg-gray-900 dark:text-primary-300 dark:hover:bg-primary-950/20"
-                  >
-                    <FileText className="h-4 w-4" />
-                    {t('courseDetail.downloadAttachment')}
-                  </a>
+                  currentAttachmentUrl.startsWith('cloud-asset:') ? (
+                    <SecureMediaLink
+                      assetUrl={currentAttachmentUrl}
+                      loadingLabel={t('courseDetail.openingAttachment')}
+                      errorLabel={t('courseDetail.attachmentOpenError')}
+                      className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-primary-600 hover:bg-primary-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-primary-300 dark:hover:bg-primary-950/20"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t('courseDetail.downloadAttachment')}
+                    </SecureMediaLink>
+                  ) : (
+                    <a
+                      href={currentAttachmentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:border-gray-700 dark:bg-gray-900 dark:text-primary-300 dark:hover:bg-primary-950/20"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t('courseDetail.downloadAttachment')}
+                    </a>
+                  )
                 ) : (
                   <p className="text-sm text-gray-500 dark:text-gray-400">{t('courseDetail.noResources')}</p>
                 )}
@@ -1269,15 +1282,27 @@ export function CourseDetailPage() {
                     ) : null}
 
                     {currentAttachmentUrl ? (
-                      <a
-                        href={currentAttachmentUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:underline dark:text-primary-300"
-                      >
-                        <FileText className="h-4 w-4" />
-                        {t('courseDetail.downloadLessonResource')}
-                      </a>
+                      currentAttachmentUrl.startsWith('cloud-asset:') ? (
+                        <SecureMediaLink
+                          assetUrl={currentAttachmentUrl}
+                          loadingLabel={t('courseDetail.openingAttachment')}
+                          errorLabel={t('courseDetail.attachmentOpenError')}
+                          className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:underline disabled:opacity-60 dark:text-primary-300"
+                        >
+                          <FileText className="h-4 w-4" />
+                          {t('courseDetail.downloadLessonResource')}
+                        </SecureMediaLink>
+                      ) : (
+                        <a
+                          href={currentAttachmentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:underline dark:text-primary-300"
+                        >
+                          <FileText className="h-4 w-4" />
+                          {t('courseDetail.downloadLessonResource')}
+                        </a>
+                      )
                     ) : (
                       <p className="text-sm text-gray-500 dark:text-gray-400">{t('courseDetail.noDownloadableResource')}</p>
                     )}

@@ -323,6 +323,8 @@
     "markComplete": "Mark Complete",
     "lessonResources": "Lesson resources",
     "downloadAttachment": "Download attachment",
+    "openingAttachment": "Opening attachment...",
+    "attachmentOpenError": "Unable to open this attachment. Please try again.",
     "noResources": "No resources are attached to this lesson yet.",
     "attachment": "Attachment",
     "courseOverview": "Course overview",
