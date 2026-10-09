@@ -37,6 +37,7 @@ router = APIRouter()
 
 class MfaVerificationRequest(BaseModel):
     code: str = Field(..., pattern=r"^\d{6}$")
+    remember_me: bool = False
 
 
 class EmailVerificationRequest(BaseModel):
@@ -47,7 +48,12 @@ class ResendVerificationRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=254)
 
 
-def _auth_result(user: dict[str, Any], profile: dict[str, Any], access_token: str) -> ApiSuccessResponse[dict[str, Any]]:
+def _auth_result(
+    user: dict[str, Any],
+    profile: dict[str, Any],
+    access_token: str,
+    expires_at: datetime,
+) -> ApiSuccessResponse[dict[str, Any]]:
     return ApiSuccessResponse(
         data={
             "user": {"id": user["id"], "email": user["email"], "role": user["role"]},
@@ -57,11 +63,45 @@ def _auth_result(user: dict[str, Any], profile: dict[str, Any], access_token: st
                 "authenticated": True,
                 "access_token": access_token,
                 "token_type": "bearer",
+                "expires_at": expires_at.isoformat(),
             },
             "profile": profile,
         },
         message="Signed in successfully.",
     )
+
+
+REMEMBER_ME_TOKEN_EXPIRE_MINUTES = 14 * 24 * 60
+
+
+def _issue_access_token(
+    user: dict[str, Any],
+    *,
+    remember_me: bool = False,
+    mfa_verified: bool = False,
+) -> tuple[str, datetime]:
+    platform_settings = get_platform_admin_settings()
+    configured_expiration = platform_settings.get("jwt_expiration_minutes", settings.jwt_access_token_expire_minutes)
+    normal_expiration = (
+        configured_expiration
+        if isinstance(configured_expiration, int)
+        and not isinstance(configured_expiration, bool)
+        and configured_expiration > 0
+        else settings.jwt_access_token_expire_minutes
+    )
+    expires_minutes = (
+        REMEMBER_ME_TOKEN_EXPIRE_MINUTES
+        if remember_me and user["role"] != "admin"
+        else normal_expiration
+    )
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+    token = create_access_token(
+        user["id"],
+        user["role"],
+        mfa_verified=mfa_verified,
+        expires_minutes=expires_minutes,
+    )
+    return token, expires_at
 
 
 def _mfa_challenge_result(user: dict[str, Any], setup_required: bool) -> ApiSuccessResponse[dict[str, Any]]:
@@ -204,8 +244,8 @@ async def sign_in(payload: SignInRequest) -> ApiSuccessResponse[dict[str, Any]]:
         return _mfa_challenge_result(user, setup_required=not user.get("mfa_enabled", False))
 
     profile = _profile_payload(user)
-    access_token = create_access_token(user["id"], user["role"])
-    return _auth_result(user, profile, access_token)
+    access_token, expires_at = _issue_access_token(user, remember_me=payload.remember_me)
+    return _auth_result(user, profile, access_token, expires_at)
 
 
 @router.post("/auth/mfa/setup", response_model=ApiSuccessResponse[dict[str, str]])
@@ -255,8 +295,12 @@ async def verify_mfa(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"error": "MFA enrollment could not be completed."})
     reset_user_mfa_attempts(user["id"])
     refreshed_user = {**user, "mfa_enabled": True}
-    access_token = create_access_token(user["id"], user["role"], mfa_verified=True)
-    return _auth_result(refreshed_user, _profile_payload(user), access_token)
+    access_token, expires_at = _issue_access_token(
+        user,
+        remember_me=payload.remember_me,
+        mfa_verified=True,
+    )
+    return _auth_result(refreshed_user, _profile_payload(user), access_token, expires_at)
 
 
 @router.get(

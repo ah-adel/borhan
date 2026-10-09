@@ -49,6 +49,7 @@ class UserSession(BaseSchema):
 class SignInRequest(BaseSchema):
     email: str = Field(..., description="User email to sign in with.")
     password: str = Field(..., min_length=6, max_length=128, description="Password for the user account.")
+    remember_me: bool = Field(default=False, description="Keep the session signed in for longer.")
 
     @field_validator("email")
     @classmethod

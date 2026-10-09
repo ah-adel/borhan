@@ -23,6 +23,11 @@ def create_access_token(
         platform_settings = get_platform_admin_settings()
         expiration = platform_settings.get("jwt_expiration_minutes", settings.jwt_access_token_expire_minutes)
         expires_minutes = expiration if isinstance(expiration, int) and not isinstance(expiration, bool) and expiration > 0 else settings.jwt_access_token_expire_minutes
+    elif role == "admin":
+        platform_settings = get_platform_admin_settings()
+        expiration = platform_settings.get("jwt_expiration_minutes", settings.jwt_access_token_expire_minutes)
+        normal_expiration = expiration if isinstance(expiration, int) and not isinstance(expiration, bool) and expiration > 0 else settings.jwt_access_token_expire_minutes
+        expires_minutes = min(expires_minutes, normal_expiration)
     expires_at = issued_at + timedelta(minutes=expires_minutes)
     return jwt.encode(
         {
