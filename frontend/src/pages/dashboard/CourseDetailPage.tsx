@@ -22,7 +22,7 @@ import { SecureVideoEmbed } from '@/components/dashboard/SecureVideoEmbed';
 import { VideoPlayer } from '@/components/dashboard/VideoPlayer';
 import { DiscussionPanel } from '@/components/dashboard/lms/DiscussionPanel';
 import { QuizPanel } from '@/components/dashboard/lms/QuizPanel';
-import { updateCourseForInstructor } from '@/lib/courseRepository';
+import { fetchStudentEnrolledCourses, updateCourseForInstructor } from '@/lib/courseRepository';
 import {
   deleteCourseRecord,
   normalizeEnrollmentProgress,
@@ -319,6 +319,7 @@ export function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [course, setCourse] = useState<LocalCourseRecord | null>(null);
+  const [isCourseStudentEnrolled, setIsCourseStudentEnrolled] = useState(false);
   const [modules, setModules] = useState<CourseModule[]>([]);
   const [instructorName, setInstructorName] = useState('Instructor');
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
@@ -365,8 +366,12 @@ export function CourseDetailPage() {
       const normalizedId = courseId.trim().toLowerCase();
       const localCourse = courses.find((item) => item.id.trim().toLowerCase() === normalizedId) ?? null;
       const selectedCourse = await fetchCourseById(courseId) ?? localCourse;
+      const enrolledCourses = profile?.role === 'student'
+        ? await fetchStudentEnrolledCourses(session.userId)
+        : [];
       if (!isMounted) return;
       setCourse(selectedCourse);
+      setIsCourseStudentEnrolled(enrolledCourses.some((item) => item.id === selectedCourse?.id));
 
       if (selectedCourse) {
         const instructors = readLocalUsers().filter((user) => user.role === 'instructor');
@@ -421,7 +426,7 @@ export function CourseDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [courseId, session?.userId, location.search]);
+  }, [courseId, location.search, profile?.role, session?.userId]);
 
   useEffect(() => {
     if (!resumeLessonId) return;
@@ -453,8 +458,6 @@ export function CourseDetailPage() {
     () => Number(course?.enrollmentCount ?? readLocalEnrollments().filter((entry) => entry.courseId === course?.id).length),
     [course?.enrollmentCount, course?.id],
   );
-  const isCourseStudentEnrolled = useMemo(() => Boolean(session?.userId && readLocalEnrollments().some((entry) => entry.studentId === session.userId && entry.courseId === course?.id)), [course?.id, session?.userId]);
-
   useEffect(() => {
     if (!allLessons.length) {
       setSelectedLessonId(null);

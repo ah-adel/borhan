@@ -68,6 +68,10 @@ def test_course_creation_preserves_explicit_difficulty_and_reviews() -> None:
     enrollment = client.post(f"/api/courses/{created_course['id']}/enroll", headers={'Authorization': f'Bearer {student_token}'})
     assert enrollment.status_code == 200, enrollment.text
 
+    student_courses = client.get('/api/student/courses', headers={'Authorization': f'Bearer {student_token}'})
+    assert student_courses.status_code == 200, student_courses.text
+    assert any(course['id'] == created_course['id'] for course in student_courses.json()['data'])
+
     review = client.post(
         f"/api/courses/{created_course['id']}/reviews",
         json={'rating': 5, 'comment': 'Excellent course.'},

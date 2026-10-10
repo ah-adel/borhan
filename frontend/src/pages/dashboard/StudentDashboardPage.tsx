@@ -21,6 +21,7 @@ import { useScrollLock } from '@/hooks/useScrollLock';
 import { fetchGamificationStats } from '@/services/lmsRepository';
 import type { StudentGamificationStats } from '@/types/lms';
 import { fetchStudentEnrolledCourses, unenrollStudentFromCourse } from '@/lib/courseRepository';
+import { attachStudentEnrollmentMetadata } from '@/lib/studentEnrollmentCourses';
 import {
   ensureInstructorRecordsForCourses,
   readLocalEnrollments,
@@ -88,6 +89,7 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
   const navigate = useNavigate();
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [courseLoadError, setCourseLoadError] = useState<string | null>(null);
   const [isTutorOpen, setIsTutorOpen] = useState(false);
   const [gamification, setGamification] = useState<StudentGamificationStats | null>(null);
   const [gamificationFailed, setGamificationFailed] = useState(false);
@@ -114,23 +116,19 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
 
     const loadCourses = async () => {
       try {
+        setCourseLoadError(null);
         const authenticCourses = await fetchStudentEnrolledCourses(session.userId);
         const users = ensureInstructorRecordsForCourses(authenticCourses);
-        const enrollments = readLocalEnrollments().filter(
-          (entry) => entry.studentId === session.userId && authenticCourses.some((course) => course.id === entry.courseId),
-        );
+        const enrollments = readLocalEnrollments();
 
-        const mappedCourses = enrollments
-          .map((entry) => {
-            const course = authenticCourses.find((item) => item.id === entry.courseId);
-            if (!course) return null;
-
+        const mappedCourses = attachStudentEnrollmentMetadata(authenticCourses, session.userId, enrollments)
+          .map(({ course, enrollment }) => {
             const instructor = users.find((user) => user.id === course.instructorId);
             const lessonCount = course.modules?.reduce((sum, module) => sum + module.lessons.length, 0) ?? 0;
-            const progress = Number.isFinite(entry.progressPercentage)
-              ? entry.progressPercentage
-              : Number.isFinite(entry.progress)
-                ? entry.progress
+            const progress = enrollment && Number.isFinite(enrollment.progressPercentage)
+              ? enrollment.progressPercentage
+              : enrollment && Number.isFinite(enrollment.progress)
+                ? enrollment.progress
                 : 0;
 
             return {
@@ -145,13 +143,15 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
               instructor: instructor?.profile.full_name ?? 'Verified instructor',
               accent: courseGradients[Math.abs(course.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % courseGradients.length],
             } satisfies EnrolledCourse;
-          })
-          .filter((course): course is EnrolledCourse => Boolean(course));
+          });
 
         if (isMounted) setEnrolledCourses(mappedCourses);
       } catch (error) {
         console.error('Failed to load student dashboard courses:', error);
-        if (isMounted) setEnrolledCourses([]);
+        if (isMounted) {
+          setEnrolledCourses([]);
+          setCourseLoadError('Unable to load your enrolled courses. Please sign in again or try later.');
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -322,7 +322,11 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
           </div>
         </div>
 
-        {enrolledCourses.length === 0 ? (
+        {courseLoadError ? (
+          <p className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300" role="alert">
+            {courseLoadError}
+          </p>
+        ) : enrolledCourses.length === 0 ? (
           <div className="mt-6">
             <EmptyState
               title={t('students.noPaths')}

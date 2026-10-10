@@ -7,6 +7,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/context/I18nContext';
 import { fetchInstructorCourses, fetchStudentEnrolledCourses, unenrollStudentFromCourse } from '@/lib/courseRepository';
+import { attachStudentEnrollmentMetadata } from '@/lib/studentEnrollmentCourses';
 import {
   readLocalEnrollments,
   readLocalUsers,
@@ -71,18 +72,15 @@ export function CoursesPage() {
       const allCourses = profile?.role === 'instructor'
         ? await fetchInstructorCourses(session.userId)
         : await fetchStudentEnrolledCourses(session.userId);
+      const studentCourseEntries = attachStudentEnrollmentMetadata(allCourses, session.userId, enrollments);
 
       const activeCourses = profile?.role === 'instructor'
         ? allCourses.filter((course) => course.instructorId === session.userId)
-        : allCourses.filter((course) =>
-            enrollments.some((entry) => entry.studentId === session.userId && entry.courseId === course.id),
-          );
+        : studentCourseEntries.map(({ course }) => course);
 
       const mappedCourses: CourseRow[] = activeCourses.map((course) => {
         const instructor = allUsers.find((user) => user.id === course.instructorId);
-        const enrollment = enrollments.find(
-          (entry) => entry.studentId === session.userId && entry.courseId === course.id,
-        );
+        const enrollment = studentCourseEntries.find((entry) => entry.course.id === course.id)?.enrollment;
 
         return {
           id: course.id,
@@ -99,6 +97,7 @@ export function CoursesPage() {
       setCourses(mappedCourses);
     } catch (loadError) {
       console.error('Failed to load user course list:', loadError);
+      setCourses([]);
       setError('Unable to load your course list from the saved data source.');
     } finally {
       setLoading(false);
@@ -207,7 +206,7 @@ export function CoursesPage() {
         </div>
       )}
 
-      {filteredCourses.length === 0 ? (
+      {error ? null : filteredCourses.length === 0 ? (
         <EmptyState
           title={t('courses.noCourses')}
           description={t('courses.noCoursesDescription')}

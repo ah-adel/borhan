@@ -3,7 +3,7 @@ import { BookOpen, Clock3, Filter, Search, Star, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
 import { useScrollLock } from '@/hooks/useScrollLock';
-import { enrollStudentInCourse, fetchPublishedCourses } from '@/lib/courseRepository';
+import { enrollStudentInCourse, fetchPublishedCourses, fetchStudentEnrolledCourses } from '@/lib/courseRepository';
 import { getCourseCategoryLabel, getCourseDifficultyLabel } from '@/lib/courseLabels';
 import { EmptyState } from '@/components/ui/EmptyState';
 import {
@@ -90,6 +90,7 @@ export function BrowseCoursesPage() {
   const [catalogCourses, setCatalogCourses] = useState<CatalogCourse[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useScrollLock(Boolean(selectedCourse));
 
@@ -106,7 +107,11 @@ export function BrowseCoursesPage() {
 
     const loadCatalog = async () => {
       try {
-        const authenticCourses = await fetchPublishedCourses();
+        setLoadError(null);
+        const [authenticCourses, enrolledCourses] = await Promise.all([
+          fetchPublishedCourses(),
+          fetchStudentEnrolledCourses(session.userId),
+        ]);
         const users = ensureInstructorRecordsForCourses(authenticCourses);
         const enrollments = readLocalEnrollments();
 
@@ -149,14 +154,13 @@ export function BrowseCoursesPage() {
         });
 
         setCatalogCourses(mappedCourses);
-        setEnrolledIds(
-          readLocalEnrollments()
-            .filter((entry) => entry.studentId === session.userId)
-            .map((entry) => entry.courseId),
-        );
+        setEnrolledIds(enrolledCourses.map((course) => course.id));
       } catch (error) {
         console.error('Failed to load published courses:', error);
-        if (isMounted) setCatalogCourses([]);
+        if (isMounted) {
+          setCatalogCourses([]);
+          setLoadError('Unable to load courses or enrollment status. Please sign in again or try later.');
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -202,22 +206,25 @@ export function BrowseCoursesPage() {
 
     if (!alreadyEnrolled) {
       const backendSucceeded = await enrollStudentInCourse(session.userId, courseId);
-      if (backendSucceeded) {
-        const nextEnrollment: LocalEnrollmentRecord = {
-          id: `${session.userId}:${courseId}`,
-          userId: session.userId,
-          studentId: session.userId,
-          courseId,
-          completedLessonIds: [],
-          progressPercentage: 0,
-          progress: 0,
-          status: 'active',
-          enrolledAt: new Date().toISOString(),
-        };
-
-        const nextEnrollments = [...existingEnrollments.filter((entry) => !(entry.studentId === session.userId && entry.courseId === courseId)), nextEnrollment];
-        writeLocalEnrollments(nextEnrollments);
+      if (!backendSucceeded) {
+        setLoadError('Unable to save your enrollment. Please try again.');
+        return;
       }
+
+      const nextEnrollment: LocalEnrollmentRecord = {
+        id: `${session.userId}:${courseId}`,
+        userId: session.userId,
+        studentId: session.userId,
+        courseId,
+        completedLessonIds: [],
+        progressPercentage: 0,
+        progress: 0,
+        status: 'active',
+        enrolledAt: new Date().toISOString(),
+      };
+
+      const nextEnrollments = [...existingEnrollments.filter((entry) => !(entry.studentId === session.userId && entry.courseId === courseId)), nextEnrollment];
+      writeLocalEnrollments(nextEnrollments);
 
       setEnrolledIds((current) => (current.includes(courseId) ? current : [...current, courseId]));
       setCatalogCourses((current) => current.map((course) =>
@@ -238,6 +245,7 @@ export function BrowseCoursesPage() {
 
   return (
     <div className="animate-fade-in-up space-y-6" dir={direction}>
+      {loadError && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300" role="alert">{loadError}</p>}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary-700 dark:bg-primary-950/40 dark:text-primary-300">

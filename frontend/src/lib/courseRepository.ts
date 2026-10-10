@@ -2,7 +2,6 @@ import {
   persistInstructorCourse,
   readAuthenticInstructorCourses,
   readLocalCourses,
-  readLocalEnrollments,
   type LocalCourseRecord,
 } from '@/lib/localDb';
 import {
@@ -360,32 +359,25 @@ export async function fetchStudentEnrolledCourses(studentId: string): Promise<Lo
   return loadCachedData(`student-enrolled-courses:${studentId}`, async () => {
     const token = await getAuthToken();
 
-    try {
-      const response = await fetchWithSession(`${API_BASE_URL}/api/student/courses`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        cache: 'no-store',
-      });
+    const response = await fetchWithSession(`${API_BASE_URL}/api/student/courses`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      cache: 'no-store',
+    });
 
-      if (!response.ok) {
-        throw new Error(`Student courses request failed: ${response.status}`);
-      }
-
-      const payload = await response.json().catch(() => ({ data: [] }));
-      const rows = Array.isArray(payload?.data) ? payload.data : [];
-      const normalized = rows.map((course: Record<string, unknown>) => normalizeApiCourseRecord(course));
-      return uniqueCourseRecords(normalized).map(normalizeCourseLessonMediaPaths);
-    } catch (error) {
-      console.warn('Falling back to local student enrollment catalog:', error);
-      const enrollments = readLocalEnrollments().filter((entry) => entry.studentId === studentId);
-      const courseIds = new Set(enrollments.map((entry) => entry.courseId));
-
-      return readLocalCourses()
-        .filter((course) => courseIds.has(course.id))
-        .map(normalizeCourseLessonMediaPaths);
+    if (!response.ok) {
+      throw new Error(`Student courses request failed: ${response.status}`);
     }
+
+    const payload = await response.json();
+    if (!Array.isArray(payload?.data)) {
+      throw new Error('Student courses response was invalid.');
+    }
+
+    const normalized = payload.data.map((course: Record<string, unknown>) => normalizeApiCourseRecord(course));
+    return uniqueCourseRecords(normalized).map(normalizeCourseLessonMediaPaths);
   });
 }
