@@ -50,10 +50,13 @@ Configure these variables in the Vercel API project. Never put service keys in `
 - `CORS_ALLOWED_ORIGINS`: comma-separated exact frontend origins, without paths.
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_PRIVATE_MEDIA_BUCKET=course-materials`.
 - `BREVO_API_KEY`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, and `APP_PUBLIC_URL`.
+- Password reset email additionally uses `EMAIL_FROM` and `FRONTEND_URL` (frontend origin, without a trailing slash); it reuses `BREVO_API_KEY` and optionally `EMAIL_FROM_NAME`.
 - `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, and `BUNNY_STREAM_TOKEN_KEY`.
 - `AI_SERVICE_ENABLED=false` until an external AI endpoint is configured.
 
 Apply schema migrations and provision the first administrator before deploying the API. Bootstrap requires `INITIAL_ADMIN_EMAIL`, a strong `INITIAL_ADMIN_PASSWORD`, and the Brevo variables; the administrator must verify the email link before signing in:
+
+Password-reset request limits are process-local in-memory buckets (10 requests per IP per hour, 3 forgot requests per email per hour, and 5 reset attempts per account/token per hour). They reset on restart and are not shared across API instances.
 
 ```bash
 cd backend_fastapi

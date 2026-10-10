@@ -17,6 +17,7 @@ def create_access_token(
     mfa_verified: bool = False,
     token_purpose: str = "access",
     expires_minutes: int | None = None,
+    session_version: int = 0,
 ) -> str:
     issued_at = datetime.now(timezone.utc)
     if expires_minutes is None:
@@ -37,6 +38,7 @@ def create_access_token(
             "exp": expires_at,
             "token_purpose": token_purpose,
             "mfa_verified": mfa_verified,
+            "session_version": session_version,
         },
         settings.jwt_secret_key,
         algorithm="HS256",
@@ -74,6 +76,8 @@ def get_user_from_access_token(token: str) -> dict[str, Any] | None:
 
     user = _user_from_claims(claims)
     if user is None:
+        return None
+    if claims.get("session_version", 0) != user.get("session_version", 0):
         return None
     platform_settings = get_platform_admin_settings()
     mfa_required = bool(platform_settings.get("enforce_mfa")) or bool(user.get("mfa_enabled"))

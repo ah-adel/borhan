@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import threading
+import time
 import uuid
+from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pyotp
-from fastapi import APIRouter, Header, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -17,22 +20,97 @@ from app.db import (
     get_all_users,
     get_platform_admin_settings,
     get_profile_by_user_id,
+    get_password_reset_email,
     get_user_by_email,
     get_user_mfa_lock,
     get_user_mfa_secret,
     reserve_email_verification,
+    reserve_password_reset_token,
     record_failed_mfa_attempt,
     reset_user_mfa_attempts,
     save_pending_mfa_secret,
     update_user_account,
+    reset_password_with_token,
     upgrade_user_password_hash,
     verify_password,
 )
-from app.services.email_service import EmailDeliveryError, create_verification_token, hash_verification_token, send_verification_email
-from app.schemas.auth import AccountProfileUpdate, SignInRequest, SignUpRequest
+from app.services.email_service import EmailDeliveryError, create_verification_token, hash_verification_token, send_password_reset_email, send_verification_email
+from app.schemas.auth import AccountProfileUpdate, CompletePasswordResetRequest, ForgotPasswordRequest, SignInRequest, SignUpRequest
 from app.schemas.common import ApiErrorResponse, ApiSuccessResponse
 
 router = APIRouter()
+
+
+class _PasswordResetRateLimiter:
+    """Process-local buckets reset on restart and are not shared across instances."""
+
+    window_seconds = 3600
+
+    def __init__(self) -> None:
+        self._buckets: dict[str, deque[float]] = {}
+        self._lock = threading.Lock()
+
+    def _allow(self, limits: tuple[tuple[str, int], ...]) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            buckets = [(key, limit, self._buckets.setdefault(key, deque())) for key, limit in limits]
+            for _, _, bucket in buckets:
+                while bucket and bucket[0] <= now - self.window_seconds:
+                    bucket.popleft()
+            if any(len(bucket) >= limit for _, limit, bucket in buckets):
+                return False
+            for _, _, bucket in buckets:
+                bucket.append(now)
+            if len(self._buckets) > 10000:
+                for key, bucket in list(self._buckets.items()):
+                    while bucket and bucket[0] <= now - self.window_seconds:
+                        bucket.popleft()
+                    if not bucket:
+                        self._buckets.pop(key, None)
+                while len(self._buckets) > 10000:
+                    oldest_key = min(self._buckets, key=lambda key: self._buckets[key][-1])
+                    self._buckets.pop(oldest_key, None)
+            return True
+
+    def allow_forgot(self, ip: str, email: str) -> bool:
+        return self._allow(((f"forgot-ip:{ip}", 10), (f"forgot-email:{email}", 3)))
+
+    def allow_reset_ip(self, ip: str) -> bool:
+        return self._allow(((f"reset-ip:{ip}", 10),))
+
+    def allow_reset_email(self, email: str) -> bool:
+        return self._allow(((f"reset-email:{email}", 5),))
+
+    def allow_reset_token(self, token_hash: str) -> bool:
+        return self._allow(((f"reset-token:{token_hash}", 5),))
+
+    def clear(self) -> None:
+        with self._lock:
+            self._buckets.clear()
+
+
+_password_reset_limiter = _PasswordResetRateLimiter()
+
+
+def _request_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+async def _process_password_reset_request(email: str) -> None:
+    user = get_user_by_email(email)
+    if user is None:
+        return
+    token = create_verification_token()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    if reserve_password_reset_token(user["id"], hash_verification_token(token), expires_at):
+        await send_password_reset_email(user["email"], token)
+
+
+def _reset_rate_limited() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail={"error": "Too many password reset attempts. Try again later.", "code": "password_reset_rate_limited"},
+    )
 
 
 class MfaVerificationRequest(BaseModel):
@@ -100,6 +178,7 @@ def _issue_access_token(
         user["role"],
         mfa_verified=mfa_verified,
         expires_minutes=expires_minutes,
+        session_version=int(user.get("session_version", 0)),
     )
     return token, expires_at
 
@@ -112,7 +191,11 @@ def _mfa_challenge_result(user: dict[str, Any], setup_required: bool) -> ApiSucc
             "mfa_required": not setup_required,
             "mfa_setup_required": setup_required,
             "challenge_token": create_access_token(
-                user["id"], user["role"], token_purpose=purpose, expires_minutes=5
+                user["id"],
+                user["role"],
+                token_purpose=purpose,
+                expires_minutes=5,
+                session_version=int(user.get("session_version", 0)),
             ),
         },
         message="Complete multi-factor authentication to continue.",
@@ -214,6 +297,56 @@ async def resend_verification(payload: ResendVerificationRequest) -> ApiSuccessR
             except EmailDeliveryError:
                 pass
     return ApiSuccessResponse(data={"accepted": True}, message="If the account needs verification, an email will be sent.")
+
+
+@router.post("/auth/forgot-password", response_model=ApiSuccessResponse[dict[str, bool]])
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+) -> ApiSuccessResponse[dict[str, bool]]:
+    if _password_reset_limiter.allow_forgot(_request_ip(request), payload.email):
+        background_tasks.add_task(_process_password_reset_request, payload.email)
+    return ApiSuccessResponse(
+        data={"accepted": True},
+        message="If an account exists for this email, a password reset link will be sent.",
+    )
+
+
+@router.post("/auth/reset-password", response_model=ApiSuccessResponse[dict[str, bool]])
+async def reset_password(
+    payload: CompletePasswordResetRequest,
+    request: Request,
+) -> ApiSuccessResponse[dict[str, bool]]:
+    if not _password_reset_limiter.allow_reset_ip(_request_ip(request)):
+        raise _reset_rate_limited()
+
+    new_password = payload.new_password.strip()
+    if not 6 <= len(new_password) <= 128:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"error": "Password must be between 6 and 128 characters long."},
+        )
+
+    token_hash = hash_verification_token(payload.token)
+    reset_email = get_password_reset_email(token_hash)
+    allowed = (
+        _password_reset_limiter.allow_reset_email(reset_email.strip().lower())
+        if reset_email
+        else _password_reset_limiter.allow_reset_token(token_hash)
+    )
+    if not allowed:
+        raise _reset_rate_limited()
+
+    if not reset_password_with_token(token_hash, new_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Password reset link is invalid, expired, or already used.",
+                "code": "password_reset_invalid",
+            },
+        )
+    return ApiSuccessResponse(data={"reset": True}, message="Password updated successfully.")
 
 
 @router.post(

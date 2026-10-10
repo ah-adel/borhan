@@ -143,6 +143,12 @@ export function SignInPage() {
           </div>
         </div>
 
+        <div className="-mt-3 text-end">
+          <Link to="/forgot-password" className="text-sm font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400">
+            {t('auth.forgotPassword')}
+          </Link>
+        </div>
+
         <label htmlFor="remember-me" className="flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
           <input
             id="remember-me"

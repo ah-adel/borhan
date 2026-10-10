@@ -13,7 +13,10 @@ export type ApiErrorResponse = {
   success: false;
   error: string;
   details?: unknown;
+  code?: string;
 };
+
+type ApiRequestError = Error & { code?: string };
 
 export type MediaUploadKind = 'video' | 'attachment';
 
@@ -62,12 +65,36 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
     ? payload.error
     : `Request failed with status ${response.status}`;
 
-  throw new Error(localizedRuntimeError(new Error(errorMessage), errorMessage));
+  const error = new Error(localizedRuntimeError(new Error(errorMessage), errorMessage)) as ApiRequestError;
+  if (typeof payload.code === 'string') error.code = payload.code;
+  throw error;
 }
 
-export async function apiRequest<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetchWithSession(input, init);
+export async function apiRequest<T>(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  options?: { useSessionToken?: boolean },
+): Promise<T> {
+  const response = await fetchWithSession(input, init, options);
   return parseApiResponse<T>(response);
+}
+
+export async function requestPasswordReset(email: string): Promise<{ accepted: boolean }> {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+  return apiRequest<{ accepted: boolean }>(`${baseUrl}/api/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  }, { useSessionToken: false });
+}
+
+export async function completePasswordReset(token: string, newPassword: string): Promise<{ reset: boolean }> {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+  return apiRequest<{ reset: boolean }>(`${baseUrl}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  }, { useSessionToken: false });
 }
 
 type AttachmentUploadTicket = {

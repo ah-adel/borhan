@@ -499,6 +499,62 @@ def consume_email_verification_token(token_hash: str) -> bool:
     return True
 
 
+def reserve_password_reset_token(user_id: str, token_hash: str, expires_at: datetime) -> bool:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM users WHERE id = %s FOR UPDATE", (user_id,))
+            if cursor.fetchone() is None:
+                return False
+            cursor.execute(
+                "UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = %s AND used_at IS NULL",
+                (user_id,),
+            )
+            cursor.execute(
+                "INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at) VALUES (%s, %s, %s, %s)",
+                (str(uuid.uuid4()), user_id, token_hash, expires_at),
+            )
+        connection.commit()
+    return True
+
+
+def get_password_reset_email(token_hash: str) -> str | None:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT u.email FROM password_reset_tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = %s",
+                (token_hash,),
+            )
+            row = cursor.fetchone()
+    return str(row[0]) if row else None
+
+
+def reset_password_with_token(token_hash: str, password: str) -> bool:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT user_id FROM password_reset_tokens WHERE token_hash = %s AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP FOR UPDATE",
+                (token_hash,),
+            )
+            token_row = cursor.fetchone()
+            if token_row is None:
+                return False
+
+            user_id = token_row[0]
+            encoded_password = _normalize_password(password)
+            cursor.execute(
+                "UPDATE users SET password = %s, session_version = session_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (encoded_password, user_id),
+            )
+            if cursor.rowcount != 1:
+                return False
+            cursor.execute(
+                "UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = %s AND used_at IS NULL",
+                (user_id,),
+            )
+        connection.commit()
+    return True
+
+
 def create_media_asset(
     asset_id: str,
     *,
@@ -763,6 +819,10 @@ def update_user_account(user_id: str, full_name: str, email: str, bio: str | Non
             )
             if email_changed:
                 cursor.execute("DELETE FROM email_verification_tokens WHERE user_id = %s", (user_id,))
+                cursor.execute(
+                    "UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = %s AND used_at IS NULL",
+                    (user_id,),
+                )
             cursor.execute(
                 "UPDATE profiles SET full_name = %s, bio = %s, updated_at = %s WHERE id = %s",
                 (full_name, bio, now, user_id),
@@ -937,8 +997,13 @@ def update_user_password(user_id: str, password: str) -> bool:
     encoded = _normalize_password(password)
     with get_connection() as connection:
         with connection.cursor() as cursor:
-            cursor.execute("UPDATE users SET password = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s", (encoded, user_id))
+            cursor.execute("UPDATE users SET password = %s, session_version = session_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = %s", (encoded, user_id))
             changed = cursor.rowcount > 0
+            if changed:
+                cursor.execute(
+                    "UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = %s AND used_at IS NULL",
+                    (user_id,),
+                )
         connection.commit()
     return changed
 
@@ -2057,4 +2122,5 @@ def _row_to_user(row: dict[str, Any]) -> dict[str, Any]:
         "joined_at": row["joined_at"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
+        "session_version": int(row.get("session_version", 0)),
     }

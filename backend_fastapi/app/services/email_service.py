@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import html
+import logging
 import os
+import re
 import secrets
+from urllib.parse import urlencode
 
 import httpx
+
+logger = logging.getLogger("app.email")
 
 
 class EmailDeliveryError(RuntimeError):
@@ -59,6 +64,85 @@ async def send_verification_email(recipient: str, token: str) -> None:
         f'<p><a href="{safe_url}">Verify email address</a></p>'
         "<p>This link expires in 30 minutes.</p>",
     )
+
+
+def _redact_password_reset_excerpt(body: str, secrets_to_redact: tuple[str, ...]) -> str:
+    excerpt = body
+    for secret in secrets_to_redact:
+        if secret:
+            excerpt = excerpt.replace(secret, "[REDACTED]")
+    excerpt = re.sub(r"https?://[^\s\"'<>]+", "[URL REDACTED]", excerpt, flags=re.IGNORECASE)
+    excerpt = re.sub(
+        r"(?i)([\"']?(?:api[-_ ]?key|authorization|token|password|reset[_-]?link|url)[\"']?\s*:\s*[\"']?)[^\"'\s,}]+",
+        r"\1[REDACTED]",
+        excerpt,
+    )
+    excerpt = "".join(character if character.isprintable() else " " for character in excerpt)
+    return excerpt[:200]
+
+
+async def send_password_reset_email(recipient: str, token: str) -> bool:
+    api_key = os.getenv("BREVO_API_KEY", "").strip()
+    sender_email = os.getenv("EMAIL_FROM", "").strip()
+    sender_name = os.getenv("EMAIL_FROM_NAME", "Borhan").strip() or "Borhan"
+    frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    missing = [
+        name
+        for name, value in (
+            ("BREVO_API_KEY", api_key),
+            ("EMAIL_FROM", sender_email),
+            ("FRONTEND_URL", frontend_url),
+        )
+        if not value
+    ]
+    if missing:
+        logger.warning("Password reset email skipped; missing configuration: %s", ", ".join(missing))
+        return False
+
+    reset_url = f"{frontend_url}/reset-password?{urlencode({'token': token})}"
+    safe_url = html.escape(reset_url, quote=True)
+    subject = "إعادة تعيين كلمة المرور | Reset your password"
+    text_content = (
+        "طلبت إعادة تعيين كلمة مرور حسابك في Borhan. افتح الرابط التالي خلال 30 دقيقة:\n"
+        f"{reset_url}\nإذا لم تطلب ذلك، فتجاهل هذه الرسالة.\n\n"
+        "You requested a Borhan password reset. Open this link within 30 minutes:\n"
+        f"{reset_url}\nIf you did not request this, ignore this email."
+    )
+    html_content = (
+        "<p>طلبت إعادة تعيين كلمة مرور حسابك في Borhan. تنتهي صلاحية الرابط خلال 30 دقيقة.</p>"
+        f'<p><a href="{safe_url}">إعادة تعيين كلمة المرور</a></p>'
+        "<p>إذا لم تطلب ذلك، فتجاهل هذه الرسالة.</p>"
+        "<hr><p>You requested a Borhan password reset. This link expires in 30 minutes.</p>"
+        f'<p><a href="{safe_url}">Reset password</a></p>'
+        "<p>If you did not request this, ignore this email.</p>"
+    )
+    payload = {
+        "sender": {"name": sender_name, "email": sender_email},
+        "to": [{"email": recipient}],
+        "subject": subject,
+        "htmlContent": html_content,
+        "textContent": text_content,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
+            response = await client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "api-key": api_key,
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                },
+                json=payload,
+            )
+    except httpx.HTTPError as exc:
+        logger.warning("Brevo password reset request failed; error_type=%s", type(exc).__name__)
+        return False
+
+    if not response.is_success:
+        excerpt = _redact_password_reset_excerpt(response.text, (api_key, token, reset_url))
+        logger.warning("Brevo password reset request failed; status=%s body=%s", response.status_code, excerpt)
+        return False
+    return True
 
 
 async def send_test_email(recipient: str) -> None:

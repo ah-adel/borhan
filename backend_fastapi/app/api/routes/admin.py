@@ -635,7 +635,11 @@ async def admin_prepare_instructor_impersonation(instructor_id: str, authorizati
             "user_id": instructor_id,
             "role": "instructor",
             "email": instructor["email"],
-            "access_token": create_access_token(instructor_id, "instructor"),
+            "access_token": create_access_token(
+                instructor_id,
+                "instructor",
+                session_version=int(instructor.get("session_version", 0)),
+            ),
         },
         message="Instructor session prepared.",
     )

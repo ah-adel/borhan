@@ -36,7 +36,7 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
         ...(options.headers ?? {}),
       },
     }, {
-      useSessionToken: !['/api/auth/sign-in', '/api/auth/sign-up', '/api/auth/verify-email', '/api/auth/resend-verification'].includes(path),
+      useSessionToken: !['/api/auth/sign-in', '/api/auth/sign-up', '/api/auth/verify-email', '/api/auth/resend-verification', '/api/auth/forgot-password', '/api/auth/reset-password'].includes(path),
     });
   } catch (error) {
     throw new Error(localizedRuntimeError(timedOut ? new Error('Request timed out') : error));

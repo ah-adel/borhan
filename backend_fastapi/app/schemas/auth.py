@@ -115,6 +115,23 @@ class ResetPasswordRequest(BaseSchema):
         return normalized
 
 
+class ForgotPasswordRequest(BaseSchema):
+    email: str = Field(..., description="Account email to send a password reset link to.")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = normalize_email(value)
+        if not is_valid_email(normalized):
+            raise ValueError("Email address is invalid.")
+        return normalized
+
+
+class CompletePasswordResetRequest(BaseSchema):
+    token: str = Field(default="", max_length=128, description="Single-use password reset token.")
+    new_password: str = Field(..., min_length=6, max_length=128, description="Replacement account password.")
+
+
 class UpdateProfileRequest(BaseSchema):
     full_name: str | None = Field(default=None, min_length=2, max_length=120, description="Updated display name.")
     avatar_url: str | None = Field(default=None, description="Updated avatar URL.")

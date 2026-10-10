@@ -8,6 +8,8 @@ const LandingPage = lazy(() => import('@/pages/LandingPage').then((module) => ({
 const SignInPage = lazy(() => import('@/pages/auth/SignInPage').then((module) => ({ default: module.SignInPage })));
 const SignUpPage = lazy(() => import('@/pages/auth/SignUpPage').then((module) => ({ default: module.SignUpPage })));
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage').then((module) => ({ default: module.VerifyEmailPage })));
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage').then((module) => ({ default: module.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })));
 const DashboardRedirect = lazy(() => import('@/pages/dashboard/DashboardRedirect').then((module) => ({ default: module.DashboardRedirect })));
 const StudentDashboardPage = lazy(() => import('@/pages/dashboard/StudentDashboardPage').then((module) => ({ default: module.StudentDashboardPage })));
 const InstructorDashboardPage = lazy(() => import('@/pages/dashboard/InstructorDashboardPage').then((module) => ({ default: module.InstructorDashboardPage })));
@@ -81,6 +83,8 @@ export default function App() {
               }
             />
             <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             {/* Dashboard routes — wrapped in shared layout */}
             <Route element={<DashboardLayout />}>
