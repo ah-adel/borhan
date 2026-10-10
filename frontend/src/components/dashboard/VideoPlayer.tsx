@@ -485,7 +485,7 @@ export function VideoPlayer({ src, title, className = '' }: VideoPlayerProps) {
     >
       <video
         ref={videoRef}
-        className="h-full w-full object-contain"
+        className="h-full w-full max-w-full object-contain"
         src={src}
         preload="metadata"
         playsInline

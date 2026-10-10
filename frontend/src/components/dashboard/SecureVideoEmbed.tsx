@@ -39,7 +39,7 @@ export function SecureVideoEmbed({ assetUrl, title, className = '' }: SecureVide
     <iframe
       src={signedUrl}
       title={title}
-      className={`aspect-video w-full ${className}`}
+      className={`block aspect-video w-full max-w-full ${className}`}
       allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
       allowFullScreen
       referrerPolicy="strict-origin-when-cross-origin"

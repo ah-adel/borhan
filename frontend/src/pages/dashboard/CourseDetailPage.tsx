@@ -981,8 +981,8 @@ export function CourseDetailPage() {
     ) : null;
 
     return (
-      <div className="grid gap-6 xl:grid-cols-[320px,1fr]">
-        <aside className="card overflow-hidden">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[320px,1fr]">
+        <aside className="card min-w-0 overflow-hidden">
           <div className="border-b border-gray-200 px-4 py-4 dark:border-gray-800">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">{t('courseDetail.courseOutline')}</p>
             <h2 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{course.title}</h2>
@@ -1000,7 +1000,7 @@ export function CourseDetailPage() {
                     onClick={() => setExpandedModules((current) => ({ ...current, [module.id]: !isExpanded }))}
                     className="flex w-full items-center justify-between gap-3 px-3 py-3 text-start"
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-gray-500">
                         {t('courseDetail.moduleLabel', { number: moduleIndex + 1 })}
                       </p>
@@ -1056,7 +1056,7 @@ export function CourseDetailPage() {
           </div>
         </aside>
 
-        <main className="space-y-6">
+        <main className="min-w-0 space-y-6">
           {isPreviewMode && (
             <div className="card border-primary-200 bg-primary-50/80 p-4 dark:border-primary-900/60 dark:bg-primary-950/20">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1076,12 +1076,12 @@ export function CourseDetailPage() {
             </div>
           )}
 
-          <div className="card overflow-hidden">
+            <div className="card min-w-0 overflow-hidden">
             {currentLesson && (
               <>
                 <div className="border-b border-gray-200 bg-gray-50 px-5 py-4 dark:border-gray-800 dark:bg-gray-900/60">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">{t('courseDetail.nowPlaying')}</p>
                       <h2 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{currentLesson.title}</h2>
                     </div>
@@ -1101,7 +1101,7 @@ export function CourseDetailPage() {
                         <iframe
                           src={getVideoEmbedUrl(currentVideoUrl)!}
                           title={currentLesson.title}
-                          className="h-[420px] w-full"
+                          className="aspect-video w-full max-w-full"
                           allowFullScreen
                         />
                       ) : (
@@ -1420,9 +1420,9 @@ export function CourseDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 [overflow-wrap:anywhere] [word-break:break-word]">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
+        <div className="min-w-0">
           <Link to="/courses" className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-300">
             <ArrowLeft className="directional-icon h-4 w-4" />
             {t('courseDetail.backToMyCourses')}
