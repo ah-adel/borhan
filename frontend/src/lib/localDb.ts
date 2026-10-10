@@ -554,10 +554,6 @@ export function isMasterAdminUser(user?: Partial<LocalUserRecord> | null): boole
   return isMasterAdminEmail(user.email) || user.id === getMasterAdminUser()?.id;
 }
 
-export function isPublicSignupRole(role: UserRole | null | undefined): role is 'student' | 'instructor' {
-  return role === 'student' || role === 'instructor';
-}
-
 function protectMasterAdminUsers(users: LocalUserRecord[] = []): LocalUserRecord[] {
   const safeUsers = Array.isArray(users) ? users : [];
   const seededMaster = cleanSeedUsers().find((user) => isMasterAdminEmail(user.email));

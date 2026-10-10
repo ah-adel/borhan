@@ -6,9 +6,6 @@ from pydantic import Field, field_validator
 
 from app.schemas.common import BaseSchema, UserRole
 
-PublicSignupRole = Literal["student", "instructor"]
-
-
 def normalize_email(value: str) -> str:
     return value.strip().lower().replace(" ", "").replace("<", "").replace(">", "")
 
@@ -64,7 +61,7 @@ class SignUpRequest(BaseSchema):
     email: str = Field(..., description="User email to register.")
     password: str = Field(..., min_length=6, max_length=128, description="Password for registration.")
     full_name: str = Field(..., min_length=2, max_length=120, description="User full name.")
-    role: PublicSignupRole = Field(..., description="Role for the new user, limited to student or instructor.")
+    role: Literal["student"] = Field(default="student", description="Public registration only creates student accounts.")
 
     @field_validator("email")
     @classmethod

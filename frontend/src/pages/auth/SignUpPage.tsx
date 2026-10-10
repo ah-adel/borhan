@@ -8,8 +8,6 @@ import {
   EyeOff,
   ArrowRight,
   AlertCircle,
-  GraduationCap,
-  Briefcase,
   ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -20,35 +18,12 @@ import { isValidEmail, sanitizeEmail, validateDisplayName, validatePassword } fr
 import { useTranslation } from '@/context/I18nContext';
 import { localizedRuntimeError } from '@/lib/errorMessages';
 
-type PublicSignupRole = 'student' | 'instructor';
-
-const ROLE_OPTIONS: {
-  value: PublicSignupRole;
-  label: string;
-  description: string;
-  icon: typeof GraduationCap;
-}[] = [
-  {
-    value: 'student',
-    label: 'Student',
-    description: 'Enroll in courses and learn',
-    icon: GraduationCap,
-  },
-  {
-    value: 'instructor',
-    label: 'Instructor',
-    description: 'Create and manage courses',
-    icon: Briefcase,
-  },
-];
-
 export function SignUpPage() {
   const { signUp, resendVerificationEmail, user, loading: authLoading } = useAuth();
   const { t } = useTranslation();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<PublicSignupRole>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -88,7 +63,6 @@ export function SignUpPage() {
       sanitizedEmail,
       password.trim(),
       sanitizedName,
-      selectedRole,
     );
 
     if (nextChallenge) {
@@ -173,49 +147,6 @@ export function SignUpPage() {
             <span>{error}</span>
           </div>
         )}
-
-        {/* Role selection */}
-        <div>
-          <span className="label-text">{t('auth.joinAs')}</span>
-          <div className="grid grid-cols-3 gap-2.5">
-            {ROLE_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              const isSelected = selectedRole === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setSelectedRole(option.value)}
-                  className={`group flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition-all ${
-                    isSelected
-                      ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500/20 dark:border-primary-500 dark:bg-primary-950/30'
-                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-gray-600 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <Icon
-                    className={`h-5 w-5 transition-colors ${
-                      isSelected
-                        ? 'text-primary-600 dark:text-primary-400'
-                        : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'
-                    }`}
-                  />
-                  <span
-                    className={`text-xs font-semibold ${
-                      isSelected
-                        ? 'text-primary-700 dark:text-primary-300'
-                        : 'text-gray-600 dark:text-gray-400'
-                    }`}
-                  >
-                    {option.value === 'student' ? t('auth.student') : t('auth.instructor')}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-          <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-            {selectedRole === 'student' ? t('auth.studentDescription') : t('auth.instructorDescription')}
-          </p>
-        </div>
 
         <div>
           <label htmlFor="fullName" className="label-text">

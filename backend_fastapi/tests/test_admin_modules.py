@@ -23,13 +23,29 @@ def _email() -> str:
     return f"admin-module-{uuid.uuid4().hex}@example.com"
 
 
-def _signup_user(role: str = "student") -> dict:
+def _signup_user() -> dict:
     response = client.post(
         "/api/auth/sign-up",
-        json={"email": _email(), "password": "SecurePass123", "full_name": "Role Test User", "role": role},
+        json={"email": _email(), "password": "SecurePass123", "full_name": "Role Test User"},
     )
     assert response.status_code == 201, response.text
     return response.json()["data"]
+
+
+def _verified_actor_headers(role: str) -> dict[str, str]:
+    user_id = str(uuid.uuid4())
+    email = _email()
+    db.create_user_record({
+        "id": user_id,
+        "name": f"Verified {role.title()}",
+        "email": email,
+        "password": "SecurePass123",
+        "role": role,
+        "status": "active",
+        "is_verified": True,
+        "profile_full_name": f"Verified {role.title()}",
+    })
+    return {"Authorization": f"Bearer {create_access_token(user_id, role)}"}
 
 
 def test_admin_creates_student_with_hashed_password_and_profile() -> None:
@@ -82,6 +98,17 @@ def test_admin_instructor_crud_and_course_controls_are_persistent() -> None:
     )
     assert created.status_code == 201, created.text
     instructor_id = created.json()["data"]["id"]
+    instructor_user = db.get_user_by_email(email)
+    assert instructor_user is not None
+    assert db.verify_password("SecurePass123", instructor_user["password"]) == (True, False)
+
+    duplicate = client.post(
+        "/api/admin/instructors",
+        headers=ADMIN_HEADERS,
+        json={"full_name": "Duplicate Instructor", "email": email, "password": "SecurePass123"},
+    )
+    assert duplicate.status_code == 409, duplicate.text
+    assert "already exists" in duplicate.json()["error"]
 
     listed = client.get("/api/admin/instructors", headers=ADMIN_HEADERS)
     assert listed.status_code == 200, listed.text
@@ -109,13 +136,25 @@ def test_admin_instructor_crud_and_course_controls_are_persistent() -> None:
     assert db.get_user_by_id(instructor_id) is None
 
 
+@pytest.mark.parametrize("role", ["student", "instructor"])
+def test_only_admin_can_create_instructor_accounts(role: str) -> None:
+    response = client.post(
+        "/api/admin/instructors",
+        headers=_verified_actor_headers(role),
+        json={"full_name": "Forbidden Instructor", "email": _email(), "password": "SecurePass123"},
+    )
+
+    assert response.status_code == 403, response.text
+
+
 def test_instructor_earnings_count_every_enrollment_for_equal_price_courses() -> None:
     instructor_response = client.post(
-        "/api/auth/sign-up",
-        json={"email": _email(), "password": "SecurePass123", "full_name": "Revenue Instructor", "role": "instructor"},
+        "/api/admin/instructors",
+        headers=ADMIN_HEADERS,
+        json={"email": _email(), "password": "SecurePass123", "full_name": "Revenue Instructor"},
     )
     assert instructor_response.status_code == 201, instructor_response.text
-    instructor_id = instructor_response.json()["data"]["user"]["id"]
+    instructor_id = instructor_response.json()["data"]["id"]
     student_ids = [_signup_user()["user"]["id"] for _ in range(2)]
     course_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
 
@@ -160,15 +199,15 @@ def test_registration_and_auto_publish_settings_are_enforced() -> None:
         assert denied_student.status_code == 403, denied_student.text
 
         instructor = client.post(
-            "/api/auth/sign-up",
-            json={"email": _email(), "password": "SecurePass123", "full_name": "Auto Publish Instructor", "role": "instructor"},
+            "/api/admin/instructors",
+            headers=ADMIN_HEADERS,
+            json={"email": _email(), "password": "SecurePass123", "full_name": "Auto Publish Instructor"},
         )
         assert instructor.status_code == 201, instructor.text
-        instructor_user = instructor.json()["data"]["user"]
-        instructor_token = instructor.json()["data"]["session"]["access_token"]
+        instructor_user = instructor.json()["data"]
         course = client.post(
             "/api/courses",
-            headers={"Authorization": f"Bearer {instructor_token}"},
+            headers=ADMIN_HEADERS,
             json={
                 "title": "Automatically published course",
                 "description": "System setting should override the draft request.",

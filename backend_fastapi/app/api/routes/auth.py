@@ -233,7 +233,7 @@ async def sign_up(payload: SignUpRequest) -> ApiSuccessResponse[dict[str, Any]]:
     normalized_email = payload.email.strip().lower()
     normalized_password = payload.password.strip()
     platform_settings = get_platform_admin_settings()
-    if payload.role == "student" and not platform_settings.get("allowStudentSignup", True):
+    if not platform_settings.get("allowStudentSignup", True):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "Student registration is currently closed."})
     existing = get_user_by_email(normalized_email)
     if existing is not None:
@@ -246,10 +246,10 @@ async def sign_up(payload: SignUpRequest) -> ApiSuccessResponse[dict[str, Any]]:
         "name": payload.full_name.strip(),
         "email": normalized_email,
         "password": normalized_password,
-        "role": payload.role,
+        "role": "student",
         "status": "active",
         "is_verified": False,
-        "verification_status": "pending" if payload.role == "instructor" else "approved",
+        "verification_status": "approved",
         "avatar": None,
         "permissions": {"manage_courses": 1, "moderate_students": 1, "view_analytics": 1},
         "joined_at": now,

@@ -23,6 +23,7 @@ import { errorMessage } from '@/lib/apiError';
 import { AdminInstructorsEnhancements } from '@/components/dashboard/AdminInstructorsEnhancements';
 import { useTranslation } from '@/context/I18nContext';
 import { useScrollLock } from '@/hooks/useScrollLock';
+import { isValidEmail, sanitizeEmail, validateDisplayName, validatePassword } from '@/lib/validation';
 
 type InstructorStatus = 'active' | 'inactive' | 'suspended';
 
@@ -100,6 +101,8 @@ export function InstructorsPage() {
   const [specialtyFilter, setSpecialtyFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -164,6 +167,9 @@ export function InstructorsPage() {
   const openCreateModal = () => {
     setEditingId(null);
     setForm(emptyForm());
+    setFormError(null);
+    setError(null);
+    setSuccessMessage(null);
     setIsModalOpen(true);
   };
 
@@ -179,6 +185,9 @@ export function InstructorsPage() {
       permissions: { ...row.permissions },
       courseIds: [...row.courseIds],
     });
+    setFormError(null);
+    setError(null);
+    setSuccessMessage(null);
     setIsModalOpen(true);
   };
 
@@ -192,21 +201,30 @@ export function InstructorsPage() {
   const saveInstructor = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const fullName = form.fullName.trim();
-    const email = form.email.trim();
+    const fullName = validateDisplayName(form.fullName);
+    const email = sanitizeEmail(form.email);
     const specialty = form.specialty.trim() || 'General Instruction';
 
-    if (!fullName || !email) {
-      setError(t('instructors.requiredFields'));
+    setFormError(null);
+    setError(null);
+    setSuccessMessage(null);
+    if (!fullName) {
+      setFormError(t('instructors.validName'));
       return;
     }
 
-    if (!editingId && form.password.trim().length < 6) {
-      setError(t('instructors.passwordTooShort'));
+    if (!isValidEmail(email)) {
+      setFormError(t('instructors.validEmail'));
+      return;
+    }
+
+    if (!editingId && validatePassword(form.password)) {
+      setFormError(t('instructors.passwordInvalid'));
       return;
     }
 
     try {
+      const wasEditing = Boolean(editingId);
       let instructorId = editingId;
       if (editingId) {
         await updateAdminInstructor(editingId, {
@@ -220,7 +238,7 @@ export function InstructorsPage() {
       } else {
         const created = await createAdminInstructor({
           full_name: fullName,
-          email: email.toLowerCase(),
+          email,
           password: form.password,
           specialty,
           status: form.status,
@@ -232,11 +250,13 @@ export function InstructorsPage() {
       setIsModalOpen(false);
       setForm(emptyForm());
       setError(null);
+      setFormError(null);
+      setSuccessMessage(t(wasEditing ? 'instructors.updatedSuccess' : 'instructors.createdSuccess'));
       setSelectedId(instructorId);
       await loadInstructors();
     } catch (saveError) {
       console.error('Failed to save instructor:', saveError);
-      setError(errorMessage(saveError, t('instructors.saveError')));
+      setFormError(errorMessage(saveError, t('instructors.saveError')));
     }
   };
 
@@ -351,6 +371,11 @@ export function InstructorsPage() {
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
           <AlertCircle className="mt-0.5 h-4 w-4" />
           <span>{error}</span>
+        </div>
+      )}
+      {successMessage && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300" role="status">
+          {successMessage}
         </div>
       )}
 
@@ -613,9 +638,9 @@ export function InstructorsPage() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 p-4 backdrop-blur-sm" style={{ overscrollBehavior: 'contain' }}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
-            <div className="max-h-[90vh] overflow-y-auto p-6 overscroll-contain">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 p-3 backdrop-blur-sm sm:p-4" style={{ overscrollBehavior: 'contain' }}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+            <div className="max-h-[90vh] overflow-y-auto p-4 overscroll-contain sm:p-6">
               <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-600 dark:text-primary-300">
@@ -636,11 +661,14 @@ export function InstructorsPage() {
             </div>
 
               <form className="mt-6 space-y-5" onSubmit={saveInstructor}>
+              {formError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300" role="alert">{formError}</p>}
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="label-text" htmlFor="instructor-full-name">{t('instructors.fullName')}</label>
                   <input
                     id="instructor-full-name"
+                    required
+                    maxLength={120}
                     value={form.fullName}
                     onChange={(event) => updateFormValue('fullName', event.target.value)}
                     className="input-field"
@@ -653,6 +681,8 @@ export function InstructorsPage() {
                   <input
                     id="instructor-email"
                     type="email"
+                    required
+                    maxLength={254}
                     value={form.email}
                     onChange={(event) => updateFormValue('email', event.target.value)}
                     className="input-field"
@@ -694,6 +724,9 @@ export function InstructorsPage() {
                   <input
                     id="instructor-password"
                     type="password"
+                    required
+                    minLength={6}
+                    maxLength={128}
                     value={form.password}
                     onChange={(event) => updateFormValue('password', event.target.value)}
                     className="input-field"
@@ -753,11 +786,11 @@ export function InstructorsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-5 dark:border-gray-800">
+              <div className="flex flex-col-reverse items-stretch justify-end gap-3 border-t border-gray-200 pt-5 dark:border-gray-800 sm:flex-row sm:flex-wrap sm:items-center">
                 {editingId && (
                   <button
                     type="button"
-                    className="btn-secondary border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30"
+                    className="btn-secondary w-full border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30 sm:w-auto"
                     onClick={() => deleteInstructor(editingId)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -766,12 +799,12 @@ export function InstructorsPage() {
                 )}
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-secondary w-full sm:w-auto"
                   onClick={() => setIsModalOpen(false)}
                 >
                   {t('common.cancel')}
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-primary w-full sm:w-auto">
                   {editingId ? t('common.saveChanges') : t('instructors.create')}
                 </button>
               </div>

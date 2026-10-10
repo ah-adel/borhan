@@ -15,24 +15,34 @@ from app.services.public_course_cache import invalidate_public_course_cache
 client = TestClient(app)
 
 
+def _admin_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {create_access_token('admin-1', 'admin')}"}
+
+
+def _create_verified_instructor(email: str, full_name: str) -> tuple[str, str]:
+    response = client.post(
+        '/api/admin/instructors',
+        headers=_admin_headers(),
+        json={'email': email, 'password': 'Secret123', 'full_name': full_name},
+    )
+    assert response.status_code == 201, response.text
+    instructor_id = response.json()['data']['id']
+    verified = client.patch(
+        f'/api/admin/instructors/{instructor_id}',
+        headers=_admin_headers(),
+        json={'is_verified': True, 'verification_status': 'approved'},
+    )
+    assert verified.status_code == 200, verified.text
+    return instructor_id, create_access_token(instructor_id, 'instructor')
+
+
 def test_app_does_not_register_local_upload_routes() -> None:
     assert not any(route.path.startswith('/uploads/') for route in app.routes)
 
 
 def test_course_creation_preserves_explicit_difficulty_and_reviews() -> None:
     instructor_email = f"difficulty_{uuid.uuid4().hex[:8]}@example.com"
-    instructor = client.post(
-        '/api/auth/sign-up',
-        json={
-            'email': instructor_email,
-            'password': 'Secret123',
-            'full_name': 'Difficulty Instructor',
-            'role': 'instructor',
-        },
-    )
-    assert instructor.status_code == 201, instructor.text
-    instructor_id = instructor.json()['data']['user']['id']
-    instructor_token = instructor.json()['data']['session']['access_token']
+    instructor_id, instructor_token = _create_verified_instructor(instructor_email, 'Difficulty Instructor')
 
     student_email = f"difficulty_student_{uuid.uuid4().hex[:8]}@example.com"
     student = client.post(

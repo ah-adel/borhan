@@ -8,20 +8,27 @@ from app.main import app
 
 def test_course_visibility_and_evaluation_persistence() -> None:
     client = TestClient(app)
+    admin_headers = {"Authorization": f"Bearer {create_access_token('admin-1', 'admin')}"}
 
     instructor_email = f"instructor_{uuid.uuid4().hex[:8]}@example.com"
     instructor = client.post(
-        "/api/auth/sign-up",
+        "/api/admin/instructors",
+        headers=admin_headers,
         json={
             "email": instructor_email,
             "password": "pass1234",
             "full_name": "Visibility Instructor",
-            "role": "instructor",
         },
     )
     assert instructor.status_code == 201, instructor.text
-    instructor_user = instructor.json()["data"]["user"]
-    instructor_token = instructor.json()["data"]["session"]["access_token"]
+    instructor_user = instructor.json()["data"]
+    verified = client.patch(
+        f"/api/admin/instructors/{instructor_user['id']}",
+        headers=admin_headers,
+        json={"is_verified": True, "verification_status": "approved"},
+    )
+    assert verified.status_code == 200, verified.text
+    instructor_token = create_access_token(instructor_user["id"], "instructor")
 
     student_email = f"student_{uuid.uuid4().hex[:8]}@example.com"
     student = client.post(

@@ -8,7 +8,6 @@ import {
 } from 'react';
 import type { Profile, UserRole } from '@/types/database.types';
 import {
-  isPublicSignupRole,
   writeLocalSession,
 } from '@/lib/localDb';
 import { localizedRuntimeError } from '@/lib/errorMessages';
@@ -152,8 +151,7 @@ interface AuthContextValue {
   signUp: (
     email: string,
     password: string,
-    fullName: string,
-    role: UserRole
+    fullName: string
   ) => Promise<AuthActionResult>;
   verifyEmail: (token: string) => Promise<{ error: string | null }>;
   resendVerificationEmail: (email: string) => Promise<{ error: string | null }>;
@@ -286,21 +284,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signUp(
     email: string,
     password: string,
-    fullName: string,
-    role: UserRole
+    fullName: string
   ) {
     if (typeof window === 'undefined') {
       return { error: 'Local auth is only available in the browser.' };
     }
 
     try {
-      if (!isPublicSignupRole(role)) {
-        return { error: 'Public signup is limited to student and instructor accounts.' };
-      }
-
       const authResponse = await apiRequest<AuthApiResponse>(`/api/auth/sign-up`, {
         method: 'POST',
-        body: JSON.stringify({ email, password, full_name: fullName, role }),
+        body: JSON.stringify({ email, password, full_name: fullName }),
       });
 
       if (authResponse?.verification_required) {
