@@ -45,6 +45,12 @@ export function I18nProvider({ children, initialLanguage = resolveInitialLanguag
   useEffect(() => {
     applyLanguageToDocument(language);
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    const metadata = translations[language].seo;
+    document.title = metadata.title;
+    document.querySelector('meta[name="description"]')?.setAttribute('content', metadata.description);
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', metadata.title);
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', metadata.description);
+    document.querySelector('meta[property="og:locale"]')?.setAttribute('content', language === 'ar' ? 'ar_EG' : 'en_US');
   }, [language]);
 
   const direction = language === 'ar' ? 'rtl' : 'ltr';

@@ -9,14 +9,18 @@
     <meta property="og:title" content="Borhan | Modern Learning Platform" />
     <meta property="og:description" content="AI-powered learning experiences for students, instructors, and administrators." />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Borhan" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="ar_EG" />
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <script>
       (() => {
         const savedLanguage = window.localStorage.getItem('learnflow-language');
-        document.documentElement.lang = savedLanguage === 'ar' ? 'ar' : 'en';
-        document.documentElement.dir = 'ltr';
+        const language = savedLanguage === 'ar' ? 'ar' : 'en';
+        document.documentElement.lang = language;
+        document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
       })();
     </script>
     <div id="root"></div>
