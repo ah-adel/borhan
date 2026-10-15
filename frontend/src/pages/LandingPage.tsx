@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenText, Bot, BrainCircuit, Check, ShieldCheck, Sparkles, Stars, Zap } from 'lucide-react';
+import { ArrowRight, BookOpenText, Calculator, Check, GraduationCap, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useTranslation, type TranslationKey } from '@/context/I18nContext';
@@ -9,25 +9,19 @@ import { apiRequest } from '@/services/api';
 const features: { icon: typeof BookOpenText; titleKey: TranslationKey; descriptionKey: TranslationKey }[] = [
   {
     icon: BookOpenText,
-    titleKey: 'landing.structuredPaths',
-    descriptionKey: 'landing.structuredPathsDescription',
+    titleKey: 'landingCopy.organizedLessons',
+    descriptionKey: 'landingCopy.organizedLessonsDescription',
   },
   {
-    icon: BrainCircuit,
-    titleKey: 'landing.aiTutorGuidance',
-    descriptionKey: 'landing.aiTutorGuidanceDescription',
+    icon: GraduationCap,
+    titleKey: 'landingCopy.clearExplanations',
+    descriptionKey: 'landingCopy.clearExplanationsDescription',
   },
   {
-    icon: ShieldCheck,
-    titleKey: 'landing.roleManagement',
-    descriptionKey: 'landing.roleManagementDescription',
+    icon: Target,
+    titleKey: 'landingCopy.practicalPractice',
+    descriptionKey: 'landingCopy.practicalPracticeDescription',
   },
-];
-
-const supportedModels = [
-  'GPT-4o Mini',
-  'Claude 3.5 Sonnet',
-  'Gemini 2.0 Flash',
 ];
 
 type PublicPlatformStats = {
@@ -132,16 +126,16 @@ export function LandingPage() {
           <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)] lg:px-8 lg:py-24">
             <div className="flex min-w-0 flex-col justify-center">
               <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary-700 dark:border-primary-800 dark:bg-primary-950/30 dark:text-primary-300">
-                <Sparkles className="h-3.5 w-3.5" />
-                {t('landing.aiPowered')}
+                <GraduationCap className="h-3.5 w-3.5" />
+                {t('landingCopy.eyebrow')}
               </div>
 
               <h1 className="max-w-xl break-words text-4xl font-black tracking-tight text-gray-950 dark:text-white sm:text-5xl lg:text-6xl">
-                {t('landing.headline')}
+                {t('landingCopy.headline')}
               </h1>
 
               <p className="mt-6 max-w-xl break-words text-lg text-gray-600 dark:text-gray-300">
-                {t('landing.description')}
+                {t('landingCopy.description')}
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -175,36 +169,30 @@ export function LandingPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
-                        {t('landing.learningDashboard')}
+                        {t('landingCopy.learningPath')}
                       </p>
-                      <h2 className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{t('landing.aiCoachOverview')}</h2>
+                      <h2 className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{t('landingCopy.pathTitle')}</h2>
                     </div>
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-950/40 dark:text-primary-300">
-                      <Bot className="h-5 w-5" />
+                      <Calculator className="h-5 w-5" />
                     </div>
                   </div>
 
                   <div className="mt-6 space-y-4">
-                    <div className="rounded-2xl bg-gradient-to-r from-primary-600 to-violet-600 p-4 text-white shadow-lg shadow-primary-500/20">
-                      <div className="flex items-center justify-between text-sm text-primary-50">
-                        <span>{t('landing.learningMomentum')}</span>
-                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold">+18%</span>
-                      </div>
-                      <div className="mt-4 text-3xl font-bold">84%</div>
-                      <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/20">
-                        <div className="h-full w-[84%] rounded-full bg-white" />
-                      </div>
+                    <div className="rounded-2xl bg-primary-600 p-4 text-white shadow-lg shadow-primary-500/20">
+                      <p className="text-xs font-semibold uppercase text-primary-100">{t('landingCopy.pathLabel')}</p>
+                      <p className="mt-3 text-lg font-bold">{t('landingCopy.pathDescription')}</p>
                     </div>
 
                     <div className="space-y-3">
                       {([
-                        { labelKey: 'landing.courseProgress', value: '72%' },
-                        { labelKey: 'landing.tutorResponses', value: `31 ${t('landing.today')}` },
-                        { labelKey: 'landing.nextMilestone', value: t('landing.uxSprint') },
-                      ] as { labelKey: TranslationKey; value: string }[]).map((row) => (
+                        { labelKey: 'landingCopy.understandStep', valueKey: 'landingCopy.conceptValue' },
+                        { labelKey: 'landingCopy.practiceStep', valueKey: 'landingCopy.practiceValue' },
+                        { labelKey: 'landingCopy.reviewStep', valueKey: 'landingCopy.reviewValue' },
+                      ] as { labelKey: TranslationKey; valueKey: TranslationKey }[]).map((row) => (
                         <div key={row.labelKey} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 dark:border-gray-800 dark:bg-gray-950">
                           <span className="min-w-0 break-words text-sm text-gray-600 dark:text-gray-300">{t(row.labelKey)}</span>
-                          <span className="min-w-0 break-words font-semibold text-gray-900 dark:text-white">{row.value}</span>
+                          <span className="min-w-0 break-words font-semibold text-gray-900 dark:text-white">{t(row.valueKey)}</span>
                         </div>
                       ))}
                     </div>
@@ -217,9 +205,9 @@ export function LandingPage() {
 
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-600 dark:text-primary-300">{t('landingBrand.whyTeams')}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-600 dark:text-primary-300">{t('landingCopy.featuresEyebrow')}</p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-              {t('landing.everythingNeeded')}
+              {t('landingCopy.featuresHeading')}
             </h2>
           </div>
 
@@ -241,33 +229,30 @@ export function LandingPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-600 dark:text-primary-300">
-                  {t('landing.supportedModels')}
+                  {t('landingCopy.studyAreas')}
                 </p>
                 <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                  {t('landing.modelOrchestration')}
+                  {t('landingCopy.studyAreasHeading')}
                 </h2>
               </div>
               <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300">
-                <Stars className="h-4 w-4" />
-                {t('landing.multiModelReady')}
+                <Check className="h-4 w-4" />
+                {t('landingCopy.forPreUniversity')}
               </div>
             </div>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {[...supportedModels, t('landing.customRouting')].map((model) => (
-                <div key={model} className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/70">
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-primary-600 shadow-sm dark:bg-gray-950 dark:text-primary-300">
-                      <Zap className="h-5 w-5" />
-                    </div>
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
-                      {t('landing.active')}
-                    </span>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {([
+                { titleKey: 'landingCopy.mathFoundations', descriptionKey: 'landingCopy.mathFoundationsDescription', icon: BookOpenText },
+                { titleKey: 'landingCopy.quantitativeAptitude', descriptionKey: 'landingCopy.quantitativeAptitudeDescription', icon: Calculator },
+                { titleKey: 'landingCopy.steadyProgress', descriptionKey: 'landingCopy.steadyProgressDescription', icon: Target },
+              ] as { titleKey: TranslationKey; descriptionKey: TranslationKey; icon: typeof BookOpenText }[]).map(({ titleKey, descriptionKey, icon: Icon }) => (
+                <div key={titleKey} className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/70">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-primary-600 shadow-sm dark:bg-gray-950 dark:text-primary-300">
+                    <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-5 text-lg font-semibold text-gray-900 dark:text-white">{model}</h3>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                    {t('landing.modelDescription')}
-                  </p>
+                  <h3 className="mt-5 text-lg font-semibold text-gray-900 dark:text-white">{t(titleKey)}</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{t(descriptionKey)}</p>
                 </div>
               ))}
             </div>
@@ -278,9 +263,9 @@ export function LandingPage() {
           <div className="rounded-[28px] border border-primary-200 bg-gradient-to-br from-primary-600 via-violet-600 to-primary-700 p-8 text-white shadow-2xl shadow-primary-500/20 sm:p-10 lg:p-12">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0 max-w-2xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary-100">{t('landing.readyToGrow')}</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary-100">{t('landingCopy.ctaEyebrow')}</p>
                 <h2 className="mt-3 break-words text-3xl font-bold tracking-tight sm:text-4xl">
-                  {t('landing.launchExperience')}
+                  {t('landingCopy.ctaHeading')}
                 </h2>
               </div>
 
