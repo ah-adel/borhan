@@ -69,8 +69,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Cairo', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        display: ['Cairo', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
