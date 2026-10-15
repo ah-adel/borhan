@@ -53,7 +53,7 @@ export function TopBar({ onOpenMobile }: TopBarProps) {
           <button
             onClick={() => setMenuOpen((o) => !o)}
             className="flex items-center gap-2 rounded-lg p-1.5 pe-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-            aria-label={t('common.userMenu')}
+            aria-label={`${initials} ${profile?.full_name ?? t('common.user')}, ${t('common.userMenu')}`}
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
               {initials}

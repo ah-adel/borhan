@@ -473,7 +473,7 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
 
         <button
           type="button"
-          aria-label={t('ai.openTutor')}
+          aria-label={`${t('ai.openTutor')}: ${t('ai.tutor')} ${t('ai.assistant')}`}
           onClick={() => setIsTutorOpen((open) => !open)}
           className="group relative flex items-center gap-3 rounded-full border border-primary-200 bg-primary-600 px-4 py-3 text-start text-white shadow-xl shadow-primary-600/25 transition-all hover:-translate-y-0.5 hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100 dark:border-primary-800 dark:focus:ring-primary-900/50"
         >

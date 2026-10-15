@@ -75,7 +75,7 @@
   }
 
   .language-toggle {
-    @apply relative inline-flex h-9 items-center gap-0.5 rounded-full border border-gray-200 bg-gray-100 p-1 text-xs font-bold text-gray-500 shadow-inner transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400;
+    @apply relative inline-flex h-11 items-center gap-0.5 rounded-full border border-gray-200 bg-gray-100 p-1 text-xs font-bold text-gray-500 shadow-inner transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400;
   }
 
   .language-toggle__option {

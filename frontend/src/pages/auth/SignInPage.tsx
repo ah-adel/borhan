@@ -14,6 +14,8 @@ export function SignInPage() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,8 @@ export function SignInPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setEmailError(null);
+    setPasswordError(null);
     setVerificationRequired(false);
     setResendMessage(null);
 
@@ -35,12 +39,12 @@ export function SignInPage() {
     const passwordError = validatePassword(password);
 
     if (!isValidEmail(sanitizedEmail)) {
-      setError(t('auth.validEmail'));
+      setEmailError(t('auth.validEmail'));
       return;
     }
 
     if (passwordError) {
-      setError(localizedRuntimeError(new Error(passwordError), passwordError));
+      setPasswordError(localizedRuntimeError(new Error(passwordError), passwordError));
       return;
     }
 
@@ -78,7 +82,7 @@ export function SignInPage() {
       <>
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="flex items-start gap-2.5 rounded-lg bg-error-50 px-4 py-3 text-sm text-error-700 dark:bg-error-950/40 dark:text-error-300">
+          <div role="alert" className="flex items-start gap-2.5 rounded-lg bg-error-50 px-4 py-3 text-sm text-error-700 dark:bg-error-950/40 dark:text-error-300">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -103,13 +107,19 @@ export function SignInPage() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(null);
+              }}
               placeholder={t('auth.emailPlaceholder')}
               className="input-field ps-10"
               autoComplete="email"
               autoFocus
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? 'sign-in-email-error' : undefined}
             />
           </div>
+          {emailError && <p id="sign-in-email-error" role="alert" className="mt-1.5 text-sm text-error-700 dark:text-error-300">{emailError}</p>}
         </div>
 
         <div>
@@ -125,13 +135,15 @@ export function SignInPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t('auth.passwordPlaceholder')}
-              className="input-field ps-10 pe-10"
+              className="input-field ps-10 !pe-16"
               autoComplete="current-password"
+              aria-invalid={Boolean(passwordError)}
+              aria-describedby={passwordError ? 'sign-in-password-error' : undefined}
             />
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
-              className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+              className="absolute end-1 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
               aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
             >
               {showPassword ? (
@@ -141,6 +153,7 @@ export function SignInPage() {
               )}
             </button>
           </div>
+          {passwordError && <p id="sign-in-password-error" role="alert" className="mt-1.5 text-sm text-error-700 dark:text-error-300">{passwordError}</p>}
         </div>
 
         <div className="-mt-3 text-end">

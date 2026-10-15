@@ -12,7 +12,7 @@ export function LanguageToggle({ className = '' }: LanguageToggleProps) {
       type="button"
       onClick={toggleLanguage}
       className={`language-toggle ${className}`}
-      aria-label={t('common.language')}
+      aria-label={`${t('common.language')}: ع EN`}
       title={t('common.language')}
     >
       <span className={language === 'ar' ? 'language-toggle__option language-toggle__option--active' : 'language-toggle__option'}>

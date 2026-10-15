@@ -24,6 +24,9 @@ export function SignUpPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullNameError, setFullNameError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,23 +40,26 @@ export function SignUpPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setFullNameError(null);
+    setEmailError(null);
+    setPasswordError(null);
 
     const sanitizedName = validateDisplayName(fullName);
     const sanitizedEmail = sanitizeEmail(email);
     const passwordError = validatePassword(password);
 
     if (!sanitizedName) {
-      setError(t('auth.validName'));
+      setFullNameError(t('auth.validName'));
       return;
     }
 
     if (!isValidEmail(sanitizedEmail)) {
-      setError(t('auth.validEmail'));
+      setEmailError(t('auth.validEmail'));
       return;
     }
 
     if (passwordError) {
-      setError(localizedRuntimeError(new Error(passwordError), passwordError));
+      setPasswordError(localizedRuntimeError(new Error(passwordError), passwordError));
       return;
     }
 
@@ -142,7 +148,7 @@ export function SignUpPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="flex items-start gap-2.5 rounded-lg bg-error-50 px-4 py-3 text-sm text-error-700 dark:bg-error-950/40 dark:text-error-300">
+          <div role="alert" className="flex items-start gap-2.5 rounded-lg bg-error-50 px-4 py-3 text-sm text-error-700 dark:bg-error-950/40 dark:text-error-300">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -159,13 +165,19 @@ export function SignUpPage() {
               type="text"
               required
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                setFullNameError(null);
+              }}
               placeholder={t('auth.namePlaceholder')}
               className="input-field ps-10"
               autoComplete="name"
               autoFocus
+              aria-invalid={Boolean(fullNameError)}
+              aria-describedby={fullNameError ? 'sign-up-name-error' : undefined}
             />
           </div>
+          {fullNameError && <p id="sign-up-name-error" role="alert" className="mt-1.5 text-sm text-error-700 dark:text-error-300">{fullNameError}</p>}
         </div>
 
         <div>
@@ -179,12 +191,18 @@ export function SignUpPage() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(null);
+              }}
               placeholder={t('auth.emailPlaceholder')}
               className="input-field ps-10"
               autoComplete="email"
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? 'sign-up-email-error' : undefined}
             />
           </div>
+          {emailError && <p id="sign-up-email-error" role="alert" className="mt-1.5 text-sm text-error-700 dark:text-error-300">{emailError}</p>}
         </div>
 
         <div>
@@ -198,15 +216,20 @@ export function SignUpPage() {
               type={showPassword ? 'text' : 'password'}
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError(null);
+              }}
               placeholder={t('auth.passwordMinPlaceholder')}
-              className="input-field ps-10 pe-10"
+              className="input-field ps-10 !pe-16"
               autoComplete="new-password"
+              aria-invalid={Boolean(passwordError)}
+              aria-describedby={passwordError ? 'sign-up-password-error' : undefined}
             />
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
-              className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+              className="absolute end-1 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
               aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
             >
               {showPassword ? (
@@ -216,6 +239,7 @@ export function SignUpPage() {
               )}
             </button>
           </div>
+          {passwordError && <p id="sign-up-password-error" role="alert" className="mt-1.5 text-sm text-error-700 dark:text-error-300">{passwordError}</p>}
         </div>
 
         <button type="submit" disabled={loading} className="btn-primary w-full">

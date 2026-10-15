@@ -12,7 +12,7 @@ interface AuthLayoutProps {
 export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-primary-50/30 to-gray-50 px-4 py-12 dark:from-gray-950 dark:via-primary-950/20 dark:to-gray-950">
-      <div className="w-full max-w-md">
+      <main className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -39,7 +39,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
           </p>
           <div className="mt-6">{children}</div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
