@@ -5,6 +5,9 @@ export default {
   theme: {
     extend: {
       colors: {
+        surface: {
+          app: '#f7f9fc',
+        },
         primary: {
           50: '#eef6ff',
           100: '#d9ecff',
