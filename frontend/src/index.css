@@ -135,3 +135,14 @@ html.dark .dark\:text-gray-500 {
 .text-accent-500 {
   color: var(--text-accent-readable);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

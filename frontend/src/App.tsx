@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { ProtectedRoute } from '@/components/dashboard/ProtectedRoute';
 const LandingPage = lazy(() => import('@/pages/LandingPage').then((module) => ({ default: module.LandingPage })));
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
 const SignInPage = lazy(() => import('@/pages/auth/SignInPage').then((module) => ({ default: module.SignInPage })));
 const SignUpPage = lazy(() => import('@/pages/auth/SignUpPage').then((module) => ({ default: module.SignUpPage })));
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage').then((module) => ({ default: module.VerifyEmailPage })));
@@ -239,8 +240,7 @@ export default function App() {
               />
             </Route>
 
-            {/* Root redirect */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </Suspense>
         </BrowserRouter>

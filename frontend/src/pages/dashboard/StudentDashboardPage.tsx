@@ -302,7 +302,7 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
         <StatCard
           label={t('gamification.currentStreak')}
           value={gamification ? formatNumber(gamification.current_streak) : gamificationFailed ? '—' : '…'}
-          hint={t('students.milestones')}
+          hint={t('students.streakHint')}
           icon={<Flame className="h-5 w-5" />}
           accent="emerald"
         />
@@ -420,7 +420,9 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
         )}
       </div>
 
-      <div className="fixed bottom-6 end-6 z-50 flex items-end justify-end gap-3" style={{ pointerEvents: 'none' }}>
+      <div
+        className={`${isTutorOpen ? 'fixed bottom-6 end-6' : 'relative mt-6 sm:fixed sm:bottom-6 sm:end-6 sm:mt-0'} z-50 flex items-end justify-end gap-3`}
+      >
         {isTutorOpen && (
           <button
             type="button"
@@ -431,12 +433,8 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
           />
         )}
 
-        <div
-          className={`z-50 transition-all duration-300 ease-out ${
-            isTutorOpen ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-[120%] opacity-0'
-          }`}
-          style={{ overscrollBehavior: 'contain' }}
-        >
+        {isTutorOpen && (
+        <div className="z-50 transition-all duration-300 ease-out" style={{ overscrollBehavior: 'contain' }}>
           <div className="w-[min(92vw,420px)] max-h-[82vh] overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl ring-1 ring-black/5 dark:border-gray-800 dark:bg-gray-950">
             <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-primary-50 via-white to-violet-50 px-4 py-3 dark:border-gray-800 dark:from-primary-950/20 dark:via-gray-950 dark:to-violet-950/20">
               <div className="flex items-center gap-3">
@@ -470,6 +468,7 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
             </div>
           </div>
         </div>
+        )}
 
         <button
           type="button"
