@@ -1032,10 +1032,10 @@ export function InstructorDashboardPage() {
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                           course.status === 'Published'
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+                            ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
                             : course.status === 'Review'
                               ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
-                              : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                              : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                         }`}
                       >
                         {course.status}
@@ -1057,11 +1057,11 @@ export function InstructorDashboardPage() {
                     </td>
                     <td className="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white">{course.revenue}</td>
                     <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => openBuilderForCourse(course)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:border-primary-200 hover:text-primary-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-primary-800 dark:hover:text-primary-300"
+                          className="btn-secondary px-3 py-2 text-xs"
                         >
                           <PencilLine className="h-3.5 w-3.5" />
                           {t('instructorDashboard.edit')}
@@ -1069,7 +1069,7 @@ export function InstructorDashboardPage() {
                         <button
                           type="button"
                           onClick={() => navigate(`/courses/${course.id}?preview=1`)}
-                          className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
+                          className="btn-primary px-3 py-2 text-xs"
                         >
                           <Eye className="h-3.5 w-3.5" />
                           {t('instructorDashboard.view')}
