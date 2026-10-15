@@ -11,7 +11,7 @@ export function DashboardLayout() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-surface-app dark:bg-gray-950">
         <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
       </div>
     );
@@ -22,7 +22,7 @@ export function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-surface-app dark:bg-gray-950">
       <Sidebar
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}

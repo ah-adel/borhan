@@ -170,7 +170,7 @@ export function AdminInstructorsEnhancements() {
                     >
                       {courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}
                     </select>
-                    <button type="button" className="mt-2 rounded-lg bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-700" onClick={() => void reassign(row)}>
+                    <button type="button" className="btn-accent mt-2 px-2 py-1 text-xs" onClick={() => void reassign(row)}>
                       {t('adminInstructors.saveAssignment')}
                     </button>
                   </td>
