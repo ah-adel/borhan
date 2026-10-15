@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
   Activity,
@@ -75,6 +75,30 @@ export function AdminDashboardPage() {
   const [system, setSystem] = useState<SystemStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [maintenance, setMaintenance] = useState(false);
+  const [userPendingDeletion, setUserPendingDeletion] = useState<DashboardUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const usersHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    const dialog = deleteDialogRef.current;
+    if (userPendingDeletion) {
+      if (dialog && !dialog.open) dialog.showModal();
+      cancelDeleteRef.current?.focus();
+      return;
+    }
+
+    if (dialog?.open) {
+      dialog.close();
+      if (deleteTriggerRef.current?.isConnected) {
+        deleteTriggerRef.current.focus();
+      } else {
+        usersHeadingRef.current?.focus();
+      }
+    }
+  }, [userPendingDeletion]);
 
   useEffect(() => {
     setModels(readLocalAiModels());
@@ -524,7 +548,7 @@ export function AdminDashboardPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-gray-500">
               {t('dashboard.platformAccess')}
             </p>
-            <h2 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{t('dashboard.users')}</h2>
+            <h2 ref={usersHeadingRef} tabIndex={-1} className="mt-2 text-lg font-semibold text-gray-900 focus:outline-none dark:text-white">{t('dashboard.users')}</h2>
           </div>
           <Users className="h-5 w-5 text-primary-500" />
         </div>
@@ -552,6 +576,7 @@ export function AdminDashboardPage() {
                     <select
                       value={user.role}
                       onChange={(event) => void updateUserRole(user.id, event.target.value as UserRole)}
+                      aria-label={`${t('common.role')}: ${user.name}`}
                       className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
                     >
                       <option value="student">{t('common.students')}</option>
@@ -563,6 +588,7 @@ export function AdminDashboardPage() {
                     <select
                       value={user.status}
                       onChange={(event) => void updateUserStatus(user.id, event.target.value as 'active' | 'inactive' | 'suspended')}
+                      aria-label={`${t('common.status')}: ${user.name}`}
                       className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
                     >
                       <option value="active">{t('common.active')}</option>
@@ -573,7 +599,10 @@ export function AdminDashboardPage() {
                   <td className="py-3">
                     <button
                       type="button"
-                      onClick={() => void deleteUser(user.id)}
+                      onClick={(event) => {
+                        deleteTriggerRef.current = event.currentTarget;
+                        setUserPendingDeletion(user);
+                      }}
                       className="rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
                     >
                       {t('common.delete')}
@@ -619,6 +648,7 @@ export function AdminDashboardPage() {
                     <select
                       value={course.is_published ? 'published' : 'draft'}
                       onChange={(event) => void updateCourseStatus(course.id, event.target.value as 'draft' | 'published' | 'review' | 'archived')}
+                      aria-label={`${t('common.status')}: ${course.title}`}
                       className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
                     >
                       <option value="draft">{t('common.draft')}</option>
@@ -727,6 +757,53 @@ export function AdminDashboardPage() {
           ))}
         </div>
       </div>
+
+      <dialog
+        ref={deleteDialogRef}
+        aria-labelledby="delete-user-title"
+        aria-describedby="delete-user-description"
+        aria-modal="true"
+        onCancel={(event) => {
+          event.preventDefault();
+          if (!isDeletingUser) setUserPendingDeletion(null);
+        }}
+        className="w-[min(92vw,28rem)] rounded-xl border border-gray-200 bg-white p-0 text-gray-900 shadow-2xl backdrop:bg-gray-950/60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+      >
+        {userPendingDeletion && (
+          <div className="p-6">
+            <h2 id="delete-user-title" className="text-lg font-semibold">{t('adminUsers.deleteTitle')}</h2>
+            <p id="delete-user-description" className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              {t('adminUsers.deleteConfirm', { name: userPendingDeletion.name, email: userPendingDeletion.email })}
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                ref={cancelDeleteRef}
+                type="button"
+                onClick={() => setUserPendingDeletion(null)}
+                disabled={isDeletingUser}
+                className="btn-secondary"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={async () => {
+                  const user = userPendingDeletion;
+                  if (!user) return;
+                  setIsDeletingUser(true);
+                  await deleteUser(user.id);
+                  setIsDeletingUser(false);
+                  setUserPendingDeletion(null);
+                }}
+                className="rounded-lg bg-error-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-error-700 focus:outline-none focus:ring-2 focus:ring-error-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          </div>
+        )}
+      </dialog>
     </div>
   );
 }
