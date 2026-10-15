@@ -344,11 +344,11 @@ export function AdminDashboardPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5" aria-busy="true" aria-label="Loading admin metrics">
+        <div className="grid gap-6 md:grid-cols-3 xl:grid-cols-5" aria-busy="true" aria-label="Loading admin metrics">
           {[1, 2, 3, 4, 5].map((item) => <div key={item} className="card h-36 animate-pulse bg-gray-100 dark:bg-gray-900" />)}
         </div>
       ) : (
-      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-6 md:grid-cols-3 xl:grid-cols-5">
         <div className="card p-5">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.totalRevenue')}</p>
@@ -393,7 +393,7 @@ export function AdminDashboardPage() {
       </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <div className="card p-5">
           <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.totalUsers')}</p>
           <p className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{formatNumber(summary.totalUsers)}</p>
@@ -420,7 +420,28 @@ export function AdminDashboardPage() {
         <div className="card overflow-hidden">
           <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800"><div><p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">{t('dashboard.liveActivity')}</p><h2 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{t('dashboard.auditStream')}</h2></div><Activity className="h-5 w-5 text-primary-500" /></div>
           <div className="overflow-x-auto p-5">
-            {activity.length === 0 ? <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">{t('dashboard.noEvents')}</p> : <table className="min-w-full text-start text-sm"><thead><tr className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800"><th className="pb-3 pe-4">{t('common.actions')}</th><th className="pb-3 pe-4">{t('courses.course')}</th><th className="pb-3">{t('common.when')}</th></tr></thead><tbody>{activity.map((event) => <tr key={`${event.event_type}-${event.id}`} className="border-b border-gray-100 last:border-0 dark:border-gray-800"><td className="py-3 pe-4 font-medium text-gray-900 dark:text-white">{event.event_type === 'enrollment' ? t('dashboard.enrollments') : event.event_type === 'course' ? `${t('courses.course')} ${translateActivityDetail(event.detail)}` : translateActivityDetail(event.detail)}</td><td className="py-3 pe-4 text-gray-600 dark:text-gray-300">{event.subject}</td><td className="py-3 text-xs text-gray-500">{formatDate(event.occurred_at, { dateStyle: 'medium', timeStyle: 'short' })}</td></tr>)}</tbody></table>}
+            {activity.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">{t('dashboard.noEvents')}</p>
+            ) : (
+              <table className="min-w-full text-start text-sm">
+                <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="px-4 py-3">{t('common.actions')}</th>
+                    <th className="px-4 py-3">{t('courses.course')}</th>
+                    <th className="px-4 py-3">{t('common.when')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activity.map((event) => (
+                    <tr key={`${event.event_type}-${event.id}`} className="border-b border-gray-200 last:border-0 dark:border-gray-700">
+                      <td className="p-3 font-medium text-gray-900 dark:text-white">{event.event_type === 'enrollment' ? t('dashboard.enrollments') : event.event_type === 'course' ? `${t('courses.course')} ${translateActivityDetail(event.detail)}` : translateActivityDetail(event.detail)}</td>
+                      <td className="p-3 text-gray-600 dark:text-gray-300">{event.subject}</td>
+                      <td className="p-3 text-xs text-gray-500">{formatDate(event.occurred_at, { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -555,55 +576,55 @@ export function AdminDashboardPage() {
 
         <div className="overflow-x-auto p-5">
           <table className="min-w-full text-start text-sm text-gray-700 dark:text-gray-200">
-            <thead>
-              <tr className="border-b border-gray-200 text-xs uppercase tracking-[0.08em] text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                <th className="pb-3 pe-4">{t('common.user')}</th>
-                <th className="pb-3 pe-4">{t('common.role')}</th>
-                <th className="pb-3 pe-4">{t('common.status')}</th>
-                <th className="pb-3 pe-4">{t('common.actions')}</th>
+            <thead className="bg-gray-50 dark:bg-gray-800/50">
+              <tr className="border-b border-gray-200 text-xs uppercase tracking-[0.08em] text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                <th className="p-3">{t('common.user')}</th>
+                <th className="p-3">{t('common.role')}</th>
+                <th className="p-3">{t('common.status')}</th>
+                <th className="p-3">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id} className="border-b border-gray-200 last:border-b-0 dark:border-gray-800">
-                  <td className="py-3 pe-4">
+                <tr key={user.id} className="border-b border-gray-200 last:border-b-0 dark:border-gray-700">
+                  <td className="p-3">
                     <div>
                       <div className="font-medium text-gray-900 dark:text-white">{user.name}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
                     </div>
                   </td>
-                  <td className="py-3 pe-4">
+                  <td className="p-3">
                     <select
                       value={user.role}
                       onChange={(event) => void updateUserRole(user.id, event.target.value as UserRole)}
                       aria-label={`${t('common.role')}: ${user.name}`}
-                      className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
+                      className="input-field min-w-0 max-w-full py-2"
                     >
                       <option value="student">{t('common.students')}</option>
                       <option value="instructor">{t('common.instructors')}</option>
                       <option value="admin">{t('common.admins')}</option>
                     </select>
                   </td>
-                  <td className="py-3 pe-4">
+                  <td className="p-3">
                     <select
                       value={user.status}
                       onChange={(event) => void updateUserStatus(user.id, event.target.value as 'active' | 'inactive' | 'suspended')}
                       aria-label={`${t('common.status')}: ${user.name}`}
-                      className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
+                      className="input-field min-w-0 max-w-full py-2"
                     >
                       <option value="active">{t('common.active')}</option>
                       <option value="inactive">{t('common.inactive')}</option>
                       <option value="suspended">{t('dashboard.suspended')}</option>
                     </select>
                   </td>
-                  <td className="py-3">
+                  <td className="p-3">
                     <button
                       type="button"
                       onClick={(event) => {
                         deleteTriggerRef.current = event.currentTarget;
                         setUserPendingDeletion(user);
                       }}
-                      className="rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
+                      className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
                     >
                       {t('common.delete')}
                     </button>
@@ -628,28 +649,28 @@ export function AdminDashboardPage() {
 
         <div className="overflow-x-auto p-5">
           <table className="min-w-full text-start text-sm text-gray-700 dark:text-gray-200">
-            <thead>
-              <tr className="border-b border-gray-200 text-xs uppercase tracking-[0.08em] text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                <th className="pb-3 pe-4">{t('courses.course')}</th>
-                <th className="pb-3 pe-4">{t('courses.instructor')}</th>
-                <th className="pb-3 pe-4">{t('common.status')}</th>
-                <th className="pb-3 pe-4">{t('common.actions')}</th>
+            <thead className="bg-gray-50 dark:bg-gray-800/50">
+              <tr className="border-b border-gray-200 text-xs uppercase tracking-[0.08em] text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                <th className="p-3">{t('courses.course')}</th>
+                <th className="p-3">{t('courses.instructor')}</th>
+                <th className="p-3">{t('common.status')}</th>
+                <th className="p-3">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {courses.map((course) => (
-                <tr key={course.id} className="border-b border-gray-200 last:border-b-0 dark:border-gray-800">
-                  <td className="py-3 pe-4">
+                <tr key={course.id} className="border-b border-gray-200 last:border-b-0 dark:border-gray-700">
+                  <td className="p-3">
                     <div className="font-medium text-gray-900 dark:text-white">{course.title}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">{course.description}</div>
                   </td>
-                  <td className="py-3 pe-4 text-xs text-gray-500 dark:text-gray-400">{course.instructor_id}</td>
-                  <td className="py-3 pe-4">
+                  <td className="p-3 text-xs text-gray-500 dark:text-gray-400">{course.instructor_id}</td>
+                  <td className="p-3">
                     <select
                       value={course.is_published ? 'published' : 'draft'}
                       onChange={(event) => void updateCourseStatus(course.id, event.target.value as 'draft' | 'published' | 'review' | 'archived')}
                       aria-label={`${t('common.status')}: ${course.title}`}
-                      className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
+                      className="input-field min-w-0 max-w-full py-2"
                     >
                       <option value="draft">{t('common.draft')}</option>
                       <option value="published">{t('common.published')}</option>
@@ -657,11 +678,11 @@ export function AdminDashboardPage() {
                       <option value="archived">{t('common.inactive')}</option>
                     </select>
                   </td>
-                  <td className="py-3">
+                  <td className="p-3">
                     <button
                       type="button"
                       onClick={() => void updateCourseStatus(course.id, 'published')}
-                      className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                      className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                     >
                       {t('common.published')}
                     </button>
@@ -767,7 +788,7 @@ export function AdminDashboardPage() {
           event.preventDefault();
           if (!isDeletingUser) setUserPendingDeletion(null);
         }}
-        className="w-[min(92vw,28rem)] rounded-xl border border-gray-200 bg-white p-0 text-gray-900 shadow-2xl backdrop:bg-gray-950/60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+        className="max-h-[90vh] w-[min(92vw,28rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-0 text-gray-900 shadow-2xl backdrop:bg-gray-950/60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
       >
         {userPendingDeletion && (
           <div className="p-6">
