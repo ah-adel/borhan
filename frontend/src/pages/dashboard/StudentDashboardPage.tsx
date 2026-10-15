@@ -263,13 +263,14 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         <StatCard
           label={t('students.enrolled')}
           value={enrolledCourses.length}
           hint={t('students.activeCourses')}
           icon={<BookOpen className="h-5 w-5" />}
           accent="primary"
+          valueClassName="text-primary-700 dark:text-primary-300"
         />
 
         <StatCard
@@ -278,6 +279,7 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
           hint={t('students.allPaths')}
           icon={<TrendingUp className="h-5 w-5" />}
           accent="emerald"
+          valueClassName="text-primary-700 dark:text-primary-300"
         />
 
         <StatCard
@@ -286,17 +288,19 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
           hint={t('students.milestones')}
           icon={<CheckCircle2 className="h-5 w-5" />}
           accent="violet"
+          valueClassName="text-primary-700 dark:text-primary-300"
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Link to="/leaderboard" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500/60">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Link to="/leaderboard" className="block rounded-xl transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-500/60">
           <StatCard
             label={t('gamification.points')}
             value={gamification ? formatNumber(gamification.points) : gamificationFailed ? '—' : '…'}
             hint={t('gamification.viewLeaderboard')}
             icon={<Trophy className="h-5 w-5" />}
             accent="violet"
+            valueClassName="text-primary-700 dark:text-primary-300"
           />
         </Link>
         <StatCard
@@ -305,6 +309,7 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
           hint={t('students.streakHint')}
           icon={<Flame className="h-5 w-5" />}
           accent="emerald"
+          valueClassName="text-primary-700 dark:text-primary-300"
         />
       </div>
 
@@ -341,11 +346,11 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
             />
           </div>
         ) : (
-          <div className="mt-6 grid gap-5 xl:grid-cols-3">
+          <div className="mt-6 grid gap-6 xl:grid-cols-3">
             {enrolledCourses.map((course) => (
               <article
                 key={course.id}
-                className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                className="card overflow-hidden transition-shadow hover:shadow-md"
               >
                 <div className={`h-28 bg-gradient-to-br ${course.accent}`} />
 
@@ -375,7 +380,7 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
                     </div>
                     <div className="h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-primary-500 to-violet-500"
+                        className="h-full rounded-full bg-gradient-to-r from-primary-500 to-primary-700"
                         style={{ width: `${course.progress}%` }}
                       />
                     </div>
