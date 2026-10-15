@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { GraduationCap } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageToggle } from '@/components/LanguageToggle';
+import { useTranslation } from '@/context/I18nContext';
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -10,6 +11,8 @@ interface AuthLayoutProps {
 }
 
 export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-primary-50/30 to-gray-50 px-4 py-12 dark:from-gray-950 dark:via-primary-950/20 dark:to-gray-950">
       <main className="w-full max-w-md">
@@ -20,7 +23,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
             <span className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-              Borhan
+              {t('common.brandName')}
             </span>
           </div>
           <div className="flex items-center gap-2">

@@ -106,7 +106,7 @@ export function LandingPage() {
               L
             </div>
             <div>
-              <div className="text-base font-semibold tracking-tight">Borhan</div>
+              <div className="text-base font-semibold tracking-tight">{t('common.brandName')}</div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
                 {t('landing.learningPlatform')}
               </div>
@@ -217,7 +217,7 @@ export function LandingPage() {
 
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-600 dark:text-primary-300">{t('landing.whyTeams')}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-600 dark:text-primary-300">{t('landingBrand.whyTeams')}</p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
               {t('landing.everythingNeeded')}
             </h2>
@@ -301,7 +301,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-8 text-sm text-gray-500 dark:text-gray-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-200">
             <Check className="h-4 w-4 text-emerald-500" />
-            Borhan
+            {t('common.brandName')}
           </div>
           <div>{t('landing.designedForTeams')}</div>
         </div>
