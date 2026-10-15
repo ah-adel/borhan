@@ -22,5 +22,6 @@ dist-ssr
 *.sw?
 .env
 backups/
+audit-output/
 .jwt_signing_key
 .jwt_signing_key.*.tmp
