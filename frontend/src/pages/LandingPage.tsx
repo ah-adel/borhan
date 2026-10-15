@@ -94,8 +94,8 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-white">
       <header className="sticky top-0 z-40 border-b border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/75">
-        <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-y-3 px-4 py-4 sm:px-6 lg:px-8">
-          <Link to="/" className="flex items-center gap-3">
+        <nav className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:px-6 sm:py-4 lg:px-8">
+          <Link to="/" className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-violet-600 text-lg font-bold text-white shadow-lg shadow-primary-500/20">
               L
             </div>
@@ -107,9 +107,12 @@ export function LandingPage() {
             </div>
           </Link>
 
-          <div className="flex max-w-full flex-wrap items-center justify-end gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 sm:gap-2">
             <LanguageToggle className="shrink-0" />
             <ThemeToggle />
+          </div>
+
+          <div className="col-span-2 flex items-center justify-end gap-2 sm:col-span-1 sm:justify-self-end">
             <Link to="/auth/sign-in" className="btn-secondary">
               {t('landing.signIn')}
             </Link>
