@@ -12,6 +12,8 @@
 
 @layer base {
   :root {
+    --text-muted: #6b7280;
+    --text-accent-readable: #b94616;
     --popover: #ffffff;
     --popover-foreground: #111827;
     --popover-border: #e5e7eb;
@@ -20,6 +22,8 @@
   }
 
   .dark {
+    --text-muted: #d1d5db;
+    --text-accent-readable: #f4b578;
     --popover: #111827;
     --popover-foreground: #f9fafb;
     --popover-border: #374151;
@@ -121,4 +125,13 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-400 dark:bg-gray-600;
+}
+
+.text-gray-400,
+html.dark .dark\:text-gray-500 {
+  color: var(--text-muted);
+}
+
+.text-accent-500 {
+  color: var(--text-accent-readable);
 }
