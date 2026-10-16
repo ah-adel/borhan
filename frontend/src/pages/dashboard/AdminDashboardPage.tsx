@@ -23,6 +23,9 @@ import { extractApiErrorMessage, errorMessage } from '@/lib/apiError';
 import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 import { Select } from '@/components/ui/Select';
 import { DataTable } from '@/components/ui/DataTable';
+import { Dialog } from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -65,13 +68,12 @@ async function fetchAdminResource<T>(path: string): Promise<T> {
 export function AdminDashboardPage() {
   const { profile, fetchUsers, fetchAdminStats, fetchAdminCourses } = useAuth();
   const { t, formatNumber, formatCurrency, formatDate } = useTranslation();
+  const { showToast } = useToast();
   const [refreshKey, setRefreshKey] = useState(0);
   const [models, setModels] = useState<LocalAiModelRecord[]>(() => readLocalAiModels());
   const [users, setUsers] = useState<DashboardUser[]>([]);
   const [stats, setStats] = useState<AdminStats>(EMPTY_STATS);
   const [courses, setCourses] = useState<Array<{ id: string; title: string; description: string; instructor_id: string; status?: string; is_published: boolean }>>([]);
-  const [message, setMessage] = useState<string | null>(null);
-  const [messageIsError, setMessageIsError] = useState(false);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [monthly, setMonthly] = useState<MonthlyPoint[]>([]);
   const [system, setSystem] = useState<SystemStatus | null>(null);
@@ -79,28 +81,9 @@ export function AdminDashboardPage() {
   const [maintenance, setMaintenance] = useState(false);
   const [userPendingDeletion, setUserPendingDeletion] = useState<DashboardUser | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
-  const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const cancelDeleteRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
   const usersHeadingRef = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    const dialog = deleteDialogRef.current;
-    if (userPendingDeletion) {
-      if (dialog && !dialog.open) dialog.showModal();
-      cancelDeleteRef.current?.focus();
-      return;
-    }
-
-    if (dialog?.open) {
-      dialog.close();
-      if (deleteTriggerRef.current?.isConnected) {
-        deleteTriggerRef.current.focus();
-      } else {
-        usersHeadingRef.current?.focus();
-      }
-    }
-  }, [userPendingDeletion]);
 
   useEffect(() => {
     setModels(readLocalAiModels());
@@ -149,8 +132,7 @@ export function AdminDashboardPage() {
           setActivity([]);
           setMonthly([]);
           setSystem(null);
-          setMessage(errorMessage(error, 'Unable to load admin data.'));
-          setMessageIsError(true);
+          showToast(errorMessage(error, 'Unable to load admin data.'), 'error');
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -161,7 +143,7 @@ export function AdminDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [fetchAdminCourses, fetchAdminStats, fetchUsers, profile]);
+  }, [fetchAdminCourses, fetchAdminStats, fetchUsers, profile, showToast]);
 
   const summary = useMemo(() => {
     const totalUsers = stats.total_users || users.length;
@@ -217,17 +199,15 @@ export function AdminDashboardPage() {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(extractApiErrorMessage(payload, response.status));
       setMaintenance(enabled);
-      setMessage(`Maintenance mode ${enabled ? 'enabled' : 'disabled'}.`);
-      setMessageIsError(false);
-    } catch (error) { setMessage(errorMessage(error, 'Unable to update maintenance mode.')); setMessageIsError(true); }
+      showToast(`Maintenance mode ${enabled ? 'enabled' : 'disabled'}.`, 'success');
+    } catch (error) { showToast(errorMessage(error, 'Unable to update maintenance mode.'), 'error'); }
   };
 
   const purgeCache = async () => {
     try {
       await fetchAdminResource<{ purged: boolean }>('/api/admin/system/cache/purge');
-      setMessage('Application cache purge requested.');
-      setMessageIsError(false);
-    } catch (error) { setMessage(errorMessage(error, 'Unable to purge cache.')); setMessageIsError(true); }
+      showToast('Application cache purge requested.', 'success');
+    } catch (error) { showToast(errorMessage(error, 'Unable to purge cache.'), 'error'); }
   };
 
   const updateModelSetting = <K extends keyof LocalAiModelRecord>(
@@ -262,13 +242,11 @@ export function AdminDashboardPage() {
       if (!response.ok) {
         throw new Error(extractApiErrorMessage(payload, response.status));
       }
-      setMessage(`Updated user role to ${role}.`);
+      showToast(`Updated user role to ${role}.`, 'success');
       const nextUsers = await fetchUsers();
       setUsers(nextUsers);
-      setMessageIsError(false);
     } catch (error) {
-      setMessage(errorMessage(error, 'Unable to update user role.'));
-      setMessageIsError(true);
+      showToast(errorMessage(error, 'Unable to update user role.'), 'error');
     }
   };
 
@@ -283,13 +261,11 @@ export function AdminDashboardPage() {
       if (!response.ok) {
         throw new Error(extractApiErrorMessage(payload, response.status));
       }
-      setMessage(`Updated user status to ${status}.`);
+      showToast(`Updated user status to ${status}.`, 'success');
       const nextUsers = await fetchUsers();
       setUsers(nextUsers);
-      setMessageIsError(false);
     } catch (error) {
-      setMessage(errorMessage(error, 'Unable to update user status.'));
-      setMessageIsError(true);
+      showToast(errorMessage(error, 'Unable to update user status.'), 'error');
     }
   };
 
@@ -304,15 +280,13 @@ export function AdminDashboardPage() {
       if (!response.ok) {
         throw new Error(extractApiErrorMessage(payload, response.status));
       }
-      setMessage(`Updated course status to ${status}.`);
+      showToast(`Updated course status to ${status}.`, 'success');
       const nextStats = await fetchAdminStats();
       const nextCourses = await fetchAdminCourses();
       setStats(nextStats);
       setCourses(nextCourses.map((course) => ({ ...course, status: course.is_published ? 'published' : 'draft' })));
-      setMessageIsError(false);
     } catch (error) {
-      setMessage(errorMessage(error, 'Unable to update course status.'));
-      setMessageIsError(true);
+      showToast(errorMessage(error, 'Unable to update course status.'), 'error');
     }
   };
 
@@ -326,13 +300,11 @@ export function AdminDashboardPage() {
       if (!response.ok) {
         throw new Error(extractApiErrorMessage(payload, response.status));
       }
-      setMessage('User deleted successfully.');
+      showToast('User deleted successfully.', 'success');
       const nextUsers = await fetchUsers();
       setUsers(nextUsers);
-      setMessageIsError(false);
     } catch (error) {
-      setMessage(errorMessage(error, 'Unable to delete user.'));
-      setMessageIsError(true);
+      showToast(errorMessage(error, 'Unable to delete user.'), 'error');
     }
   };
 
@@ -558,12 +530,6 @@ export function AdminDashboardPage() {
           </div>
         </div>
       </div>
-
-      {message && (
-        <div className={`rounded-xl border px-4 py-3 text-sm ${messageIsError ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200' : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200'}`} role={messageIsError ? 'alert' : 'status'}>
-          {message}
-        </div>
-      )}
 
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
@@ -792,52 +758,48 @@ export function AdminDashboardPage() {
         </div>
       </div>
 
-      <dialog
-        ref={deleteDialogRef}
-        aria-labelledby="delete-user-title"
-        aria-describedby="delete-user-description"
-        aria-modal="true"
-        onCancel={(event) => {
-          event.preventDefault();
+      <Dialog
+        open={Boolean(userPendingDeletion)}
+        onClose={() => {
           if (!isDeletingUser) setUserPendingDeletion(null);
         }}
-        className="max-h-[90vh] w-[min(92vw,28rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-0 text-gray-900 shadow-2xl backdrop:bg-gray-950/60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-      >
-        {userPendingDeletion && (
-          <div className="p-6">
-            <h2 id="delete-user-title" className="text-lg font-semibold">{t('adminUsers.deleteTitle')}</h2>
-            <p id="delete-user-description" className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-              {t('adminUsers.deleteConfirm', { name: userPendingDeletion.name, email: userPendingDeletion.email })}
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                ref={cancelDeleteRef}
-                type="button"
-                onClick={() => setUserPendingDeletion(null)}
-                disabled={isDeletingUser}
-                className="btn-secondary"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                disabled={isDeletingUser}
-                onClick={async () => {
-                  const user = userPendingDeletion;
-                  if (!user) return;
-                  setIsDeletingUser(true);
-                  await deleteUser(user.id);
-                  setIsDeletingUser(false);
-                  setUserPendingDeletion(null);
-                }}
-                className="rounded-lg bg-error-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-error-700 focus:outline-none focus:ring-2 focus:ring-error-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-              >
-                {t('common.delete')}
-              </button>
-            </div>
-          </div>
+        title={t('adminUsers.deleteTitle')}
+        description={userPendingDeletion ? t('adminUsers.deleteConfirm', { name: userPendingDeletion.name, email: userPendingDeletion.email }) : undefined}
+        initialFocusRef={cancelDeleteRef}
+        returnFocusRef={deleteTriggerRef}
+        fallbackFocusRef={usersHeadingRef}
+        closeOnEscape={!isDeletingUser}
+        closeOnBackdrop={false}
+        showCloseButton={false}
+        footer={(
+          <>
+            <button
+              ref={cancelDeleteRef}
+              type="button"
+              onClick={() => setUserPendingDeletion(null)}
+              disabled={isDeletingUser}
+              className="btn-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <Button
+              type="button"
+              variant="danger"
+              loading={isDeletingUser}
+              onClick={async () => {
+                const user = userPendingDeletion;
+                if (!user) return;
+                setIsDeletingUser(true);
+                await deleteUser(user.id);
+                setIsDeletingUser(false);
+                setUserPendingDeletion(null);
+              }}
+            >
+              {t('common.delete')}
+            </Button>
+          </>
         )}
-      </dialog>
+      />
     </div>
   );
 }

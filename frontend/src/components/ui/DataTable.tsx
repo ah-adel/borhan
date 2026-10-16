@@ -1,4 +1,5 @@
 import type { Key, ReactNode } from 'react';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 export interface DataTableColumn<Row> {
   id: string;
@@ -70,7 +71,7 @@ export function DataTable<Row>({
               <tr key={`loading-${index}`} aria-hidden="true">
                 {Array.from({ length: columnCount }, (_, cellIndex) => (
                   <td key={cellIndex} className="border-b border-border p-4">
-                    <span className="block h-4 w-3/4 animate-pulse rounded bg-gray-200 motion-reduce:animate-none dark:bg-gray-700" />
+                    <Skeleton className="h-4 w-3/4" />
                   </td>
                 ))}
               </tr>

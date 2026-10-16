@@ -82,6 +82,7 @@
     "goToPage": "الانتقال إلى الصفحة {{page}}",
     "pageStatus": "الصفحة {{page}} من {{pages}}",
     "rowsPerPage": "الصفوف في الصفحة",
+    "dismiss": "إغلاق الإشعار",
     "all": "الكل",
     "students": "طلاب",
     "instructors": "محاضرون",

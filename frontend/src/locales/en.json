@@ -82,6 +82,7 @@
     "goToPage": "Go to page {{page}}",
     "pageStatus": "Page {{page}} of {{pages}}",
     "rowsPerPage": "Rows per page",
+    "dismiss": "Dismiss notification",
     "all": "All",
     "students": "students",
     "instructors": "instructors",
