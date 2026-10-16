@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { GraduationCap } from 'lucide-react';
+import { BrandMark } from '@/components/BrandMark';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { useTranslation } from '@/context/I18nContext';
@@ -19,9 +19,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
         {/* Logo */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 shadow-lg shadow-primary-600/20">
-              <GraduationCap className="h-6 w-6 text-white" />
-            </div>
+            <BrandMark className="h-10 w-10 shadow-lg shadow-primary-600/20" iconClassName="h-6 w-6 text-white" />
             <span className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
               {t('common.brandName')}
             </span>

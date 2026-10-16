@@ -11,6 +11,7 @@ import { createAdminAdministrator, deleteAdminUser, fetchAdminUsers, type AdminU
 import { errorMessage } from '@/lib/apiError';
 import { isValidEmail, normalizeSettingsText, sanitizeEmail } from '@/lib/validation';
 import { AdminSettingsEnhancements } from '@/components/dashboard/AdminSettingsEnhancements';
+import { BrandLogoSettings } from '@/components/dashboard/BrandLogoSettings';
 import { useTranslation } from '@/context/I18nContext';
 
 const defaultPlatformSettings: LocalPlatformSettings = {
@@ -270,6 +271,8 @@ export function SettingsPage() {
           {saved}
         </div>
       )}
+
+      {isAdmin && <BrandLogoSettings />}
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr,1.05fr]">
         <div className="card p-5">

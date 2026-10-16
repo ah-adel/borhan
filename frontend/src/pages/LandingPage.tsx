@@ -2,6 +2,7 @@ import { ArrowRight, BookOpenText, Calculator, Check, GraduationCap, Target } fr
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useTranslation, type TranslationKey } from '@/context/I18nContext';
+import { BrandMark } from '@/components/BrandMark';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { apiRequest } from '@/services/api';
@@ -96,9 +97,7 @@ export function LandingPage() {
       <header className="sticky top-0 z-40 border-b border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/75">
         <nav className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:px-6 sm:py-4 lg:px-8">
           <Link to="/" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-violet-600 text-lg font-bold text-white shadow-lg shadow-primary-500/20">
-              L
-            </div>
+            <BrandMark className="h-10 w-10 shadow-lg shadow-primary-500/20" iconClassName="h-6 w-6 text-white" />
             <div>
               <div className="text-base font-semibold tracking-tight">{t('common.brandName')}</div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">

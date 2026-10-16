@@ -43,6 +43,16 @@
   "rememberMe": {
     "label": "Remember me"
   },
+  "branding": {
+    "logoTitle": "Platform logo",
+    "logoDescription": "Choose an image to replace the graduation cap. It is saved in this browser only.",
+    "chooseLogo": "Choose image",
+    "restoreLogo": "Restore default",
+    "logoSaved": "Logo updated in this browser.",
+    "logoRemoved": "Default logo restored.",
+    "invalidImage": "Choose a valid image file.",
+    "storageError": "The logo could not be saved in browser storage."
+  },
   "common": {
     "brandName": "Borhan",
     "user": "User",

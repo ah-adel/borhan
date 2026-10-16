@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { GraduationCap, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { BrandMark } from '@/components/BrandMark';
 import { getNavItemsForRole } from '@/config/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
@@ -117,9 +118,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       >
         <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-border px-5">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600">
-              <GraduationCap className="h-5 w-5 text-white" />
-            </div>
+            <BrandMark className="h-9 w-9" iconClassName="h-5 w-5 text-white" />
             <span className="text-lg font-bold text-content-main">
               {t('common.brandName')}
             </span>
