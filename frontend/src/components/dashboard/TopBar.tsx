@@ -1,18 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
+import type { RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, LogOut, User as UserIcon, ChevronDown } from 'lucide-react';
+import { Menu, LogOut, User as UserIcon, ChevronDown, Bell } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
 
 interface TopBarProps {
+  mobileOpen: boolean;
+  mobileMenuButtonRef: RefObject<HTMLButtonElement>;
   onOpenMobile: () => void;
 }
 
-export function TopBar({ onOpenMobile }: TopBarProps) {
+export function TopBar({ mobileOpen, mobileMenuButtonRef, onOpenMobile }: TopBarProps) {
   const { profile, signOut } = useAuth();
-  const { t, direction } = useI18n();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -35,25 +38,40 @@ export function TopBar({ onOpenMobile }: TopBarProps) {
     .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-200 bg-white/80 px-4 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/80 lg:px-6">
-      {/* Left: mobile menu button */}
+    <header className="sticky top-0 z-20 flex h-[72px] min-w-0 items-center justify-between border-b border-border bg-surface-card px-6 shadow-[0_4px_30px_rgba(15,23,42,0.05)] dark:shadow-none">
       <button
+        ref={mobileMenuButtonRef}
+        type="button"
         onClick={onOpenMobile}
-        className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 lg:hidden"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 lg:hidden"
         aria-label={t('nav.openSidebar')}
+        aria-expanded={mobileOpen}
+        aria-controls="dashboard-navigation"
       >
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="ms-auto flex items-center gap-2">
+      <div className="ms-auto flex min-w-0 items-center gap-2">
         <LanguageToggle />
         <ThemeToggle />
 
+        <button
+          type="button"
+          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          aria-label={t('common.notifications')}
+          title={t('common.notifications')}
+        >
+          <Bell className="h-5 w-5" aria-hidden="true" />
+          <span className="absolute end-2 top-2 h-2 w-2 rounded-full bg-error-500 ring-2 ring-white dark:ring-gray-900" aria-hidden="true" />
+        </button>
+
         <div className="relative" ref={menuRef}>
           <button
+            type="button"
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex items-center gap-2 rounded-lg p-1.5 pe-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg pe-2 ps-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
             aria-label={`${initials} ${profile?.full_name ?? t('common.user')}, ${t('common.userMenu')}`}
+            aria-expanded={menuOpen}
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
               {initials}
@@ -61,15 +79,11 @@ export function TopBar({ onOpenMobile }: TopBarProps) {
             <span className="hidden text-sm font-medium text-gray-700 dark:text-gray-200 sm:block">
               {profile?.full_name ?? t('common.user')}
             </span>
-            <ChevronDown
-              className={`h-4 w-4 text-gray-400 transition-transform ${
-                menuOpen ? (direction === 'rtl' ? 'rotate-180' : 'rotate-180') : ''
-              }`}
-            />
+            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {menuOpen && (
-            <div className="absolute end-0 mt-2 w-56 max-h-[70vh] origin-top-right overflow-y-auto rounded-xl border border-gray-200 bg-white py-1.5 shadow-lg shadow-gray-900/5 animate-scale-in overscroll-contain dark:border-gray-700 dark:bg-gray-800 dark:shadow-gray-950/30">
+            <div className="absolute end-0 mt-2 max-h-[70vh] w-56 origin-top-right overflow-y-auto rounded-xl border border-border bg-surface-card py-1.5 shadow-lg shadow-gray-900/5 animate-scale-in overscroll-contain rtl:origin-top-left dark:shadow-gray-950/30">
               <div className="border-b border-gray-100 px-4 py-2.5 dark:border-gray-700">
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
                   {profile?.full_name ?? t('common.user')}

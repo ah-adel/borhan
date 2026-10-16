@@ -47,6 +47,8 @@
     "brandName": "Borhan",
     "user": "User",
     "role": "Role",
+    "notifications": "Notifications",
+    "navigationMenu": "Main navigation",
     "language": "Language",
     "online": "Online",
     "unknown": "Unknown",
