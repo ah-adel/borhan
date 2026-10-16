@@ -21,6 +21,7 @@ import type { UserRole } from '@/types/database.types';
 import { useTranslation } from '@/context/I18nContext';
 import { extractApiErrorMessage, errorMessage } from '@/lib/apiError';
 import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
+import { Select } from '@/components/ui/Select';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -594,28 +595,28 @@ export function AdminDashboardPage() {
                     </div>
                   </td>
                   <td className="p-3">
-                    <select
+                    <Select
                       value={user.role}
                       onChange={(event) => void updateUserRole(user.id, event.target.value as UserRole)}
-                      aria-label={`${t('common.role')}: ${user.name}`}
-                      className="input-field min-w-0 max-w-full py-2"
+                      aria-label={t('dashboard.userRoleFor', { name: user.name })}
+                      className="min-w-0 max-w-full"
                     >
                       <option value="student">{t('common.students')}</option>
                       <option value="instructor">{t('common.instructors')}</option>
                       <option value="admin">{t('common.admins')}</option>
-                    </select>
+                    </Select>
                   </td>
                   <td className="p-3">
-                    <select
+                    <Select
                       value={user.status}
                       onChange={(event) => void updateUserStatus(user.id, event.target.value as 'active' | 'inactive' | 'suspended')}
-                      aria-label={`${t('common.status')}: ${user.name}`}
-                      className="input-field min-w-0 max-w-full py-2"
+                      aria-label={t('dashboard.userStatusFor', { name: user.name })}
+                      className="min-w-0 max-w-full"
                     >
                       <option value="active">{t('common.active')}</option>
                       <option value="inactive">{t('common.inactive')}</option>
                       <option value="suspended">{t('dashboard.suspended')}</option>
-                    </select>
+                    </Select>
                   </td>
                   <td className="p-3">
                     <button
@@ -666,17 +667,17 @@ export function AdminDashboardPage() {
                   </td>
                   <td className="p-3 text-xs text-gray-500 dark:text-gray-400">{course.instructor_id}</td>
                   <td className="p-3">
-                    <select
+                    <Select
                       value={course.is_published ? 'published' : 'draft'}
                       onChange={(event) => void updateCourseStatus(course.id, event.target.value as 'draft' | 'published' | 'review' | 'archived')}
-                      aria-label={`${t('common.status')}: ${course.title}`}
-                      className="input-field min-w-0 max-w-full py-2"
+                      aria-label={t('dashboard.courseStatusFor', { name: course.title })}
+                      className="min-w-0 max-w-full"
                     >
                       <option value="draft">{t('common.draft')}</option>
                       <option value="published">{t('common.published')}</option>
                       <option value="review">{t('dashboard.pendingReviews')}</option>
                       <option value="archived">{t('common.inactive')}</option>
-                    </select>
+                    </Select>
                   </td>
                   <td className="p-3">
                     <button
