@@ -17,6 +17,7 @@ interface DialogProps {
   closeOnEscape?: boolean;
   closeOnBackdrop?: boolean;
   showCloseButton?: boolean;
+  placement?: 'center' | 'bottom';
 }
 
 const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -34,6 +35,7 @@ export function Dialog({
   closeOnEscape = true,
   closeOnBackdrop = true,
   showCloseButton = true,
+  placement = 'center',
 }: DialogProps) {
   const { t } = useTranslation();
   const dialogId = useId();
@@ -98,7 +100,7 @@ export function Dialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] grid place-items-center bg-gray-950/60 p-4"
+      className={`fixed inset-0 z-[100] grid bg-gray-950/60 ${placement === 'bottom' ? 'items-end p-0 pb-[env(safe-area-inset-bottom)] sm:place-items-center sm:p-4' : 'place-items-center p-4'}`}
       onMouseDown={(event) => {
         if (closeOnBackdrop && event.target === event.currentTarget) onClose();
       }}
@@ -110,7 +112,7 @@ export function Dialog({
         aria-labelledby={`${dialogId}-title`}
         aria-describedby={description ? `${dialogId}-description` : undefined}
         tabIndex={-1}
-        className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-surface-card text-content-main shadow-2xl focus:outline-none"
+        className={`max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto border border-border bg-surface-card text-content-main shadow-2xl focus:outline-none ${placement === 'bottom' ? 'rounded-t-xl sm:rounded-xl' : 'rounded-xl'}`}
       >
         <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div className="min-w-0">

@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, CircleAlert, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
+import { QuizTakingScreen } from '@/components/dashboard/lms/QuizTakingScreen';
+import { Button } from '@/components/ui/Button';
 import {
   createQuiz,
   createQuizQuestion,
@@ -11,7 +13,7 @@ import {
   fetchQuizzes,
   submitQuiz,
 } from '@/services/lmsRepository';
-import type { Quiz, QuizAttempt, QuizQuestion } from '@/types/lms';
+import type { Quiz, QuizAttempt } from '@/types/lms';
 
 type QuizPanelProps = {
   lessonIds: string[];
@@ -39,32 +41,14 @@ const emptyQuestionDraft = (): QuestionDraft => ({
   points: '1',
 });
 
-function optionLabel(option: unknown): string {
-  if (typeof option === 'string' || typeof option === 'number') return String(option);
-  if (typeof option === 'object' && option !== null) {
-    const record = option as Record<string, unknown>;
-    return String(record.label ?? record.text ?? record.value ?? '');
-  }
-  return '';
-}
-
-function optionValue(option: unknown): unknown {
-  if (typeof option === 'object' && option !== null && 'value' in option) {
-    return (option as Record<string, unknown>).value;
-  }
-  return option;
-}
-
-function sameValue(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function isMultiSelect(question: QuizQuestion): boolean {
-  return ['multiple_select', 'multi_select', 'checkbox'].includes(question.question_type.toLowerCase().replace(/-/g, '_'));
-}
-
-function isChoice(question: QuizQuestion): boolean {
-  return question.options.length > 0 || question.question_type.toLowerCase().includes('choice');
+function formatElapsed(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canManage, canAttempt }: QuizPanelProps) {
@@ -73,8 +57,9 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [latestAttempt, setLatestAttempt] = useState<QuizAttempt | null>(null);
+  const [attemptDurationMs, setAttemptDurationMs] = useState<number | null>(null);
+  const [isTakingQuiz, setIsTakingQuiz] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -111,16 +96,18 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
     if (!selectedQuizId) {
       setQuiz(null);
       setAttempts([]);
-      setAnswers({});
       setLatestAttempt(null);
+      setAttemptDurationMs(null);
+      setIsTakingQuiz(false);
       return;
     }
 
     let mounted = true;
     setLoading(true);
     setError('');
-    setAnswers({});
     setLatestAttempt(null);
+    setAttemptDurationMs(null);
+    setIsTakingQuiz(false);
     const requests: [Promise<Quiz>, Promise<QuizAttempt[]> | null] = [
       fetchQuiz(selectedQuizId),
       canAttempt ? fetchQuizAttempts(selectedQuizId) : null,
@@ -231,32 +218,19 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
     }
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!quiz || !canAttempt) return;
-    setSaving(true);
-    setError('');
-    try {
-      const result = await submitQuiz(quiz.id, answers);
-      setLatestAttempt(result);
-      setAttempts(await fetchQuizAttempts(quiz.id));
-    } catch {
-      setError(t('lmsQuiz.submitError'));
-    } finally {
-      setSaving(false);
-    }
-  }
+  const submitAnswers = useCallback(async (answers: Record<string, unknown>) => {
+    if (!quiz || !canAttempt) throw new Error('Quiz is not available for attempts.');
+    const result = await submitQuiz(quiz.id, answers);
+    setLatestAttempt(result);
+    void fetchQuizAttempts(quiz.id).then(setAttempts).catch(() => undefined);
+    return result;
+  }, [canAttempt, quiz]);
 
-  function setAnswer(question: QuizQuestion, value: unknown, checked: boolean) {
-    setAnswers((current) => {
-      if (!isMultiSelect(question)) return { ...current, [question.id]: value };
-      const existing = Array.isArray(current[question.id]) ? current[question.id] as unknown[] : [];
-      const next = checked
-        ? [...existing.filter((entry) => !sameValue(entry, value)), value]
-        : existing.filter((entry) => !sameValue(entry, value));
-      return { ...current, [question.id]: next };
-    });
-  }
+  const handleAttemptComplete = useCallback((attempt: QuizAttempt, timeTakenMs: number) => {
+    setLatestAttempt(attempt);
+    setAttemptDurationMs(timeTakenMs);
+    setIsTakingQuiz(false);
+  }, []);
 
   if (loading && !quiz && visibleQuizzes.length === 0) {
     return <p className="text-sm text-gray-500 dark:text-gray-400" role="status">{t('common.loading')}</p>;
@@ -346,35 +320,31 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
 
           {!canManage && (quiz.questions?.length ?? 0) === 0 && <p className="text-sm text-gray-500 dark:text-gray-400">{t('lmsQuiz.noQuestions')}</p>}
 
-          {canAttempt && (quiz.questions?.length ?? 0) > 0 && (
-            <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
-              {(quiz.questions ?? []).map((question, index) => (
-                <fieldset key={question.id} className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
-                  <legend className="px-1 text-sm font-semibold text-gray-900 dark:text-white">{t('lmsQuiz.question', { number: index + 1 })}: {question.question_text} <span className="font-normal text-gray-500">({formatNumber(Number(question.points))})</span></legend>
-                  {isChoice(question) ? (
-                    <div className="space-y-2">
-                      {question.options.map((option, optionIndex) => {
-                        const value = optionValue(option);
-                        const selectedValue = answers[question.id];
-                        const checked = isMultiSelect(question)
-                          ? Array.isArray(selectedValue) && selectedValue.some((entry) => sameValue(entry, value))
-                          : sameValue(selectedValue, value);
-                        return <label key={`${question.id}-${optionIndex}`} className="flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800/60"><input type={isMultiSelect(question) ? 'checkbox' : 'radio'} name={question.id} checked={checked} onChange={(event) => setAnswer(question, value, event.target.checked)} className="mt-0.5 accent-primary-600" /><span>{optionLabel(option)}</span></label>;
-                      })}
-                    </div>
-                  ) : (
-                    <input className="input-field" value={typeof answers[question.id] === 'string' ? answers[question.id] as string : ''} onChange={(event) => setAnswer(question, event.target.value, true)} placeholder={t('lmsQuiz.typeAnswer')} />
-                  )}
-                </fieldset>
-              ))}
-              <div className="flex justify-end"><button type="submit" className="btn-primary" disabled={saving}>{t('lmsQuiz.submitQuiz')}</button></div>
-            </form>
+          {canAttempt && (quiz.questions?.length ?? 0) > 0 && !latestAttempt && !isTakingQuiz && (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface-card p-5">
+              <div>
+                <h4 className="font-semibold text-content-main">{t('lmsQuiz.readyToPractice')}</h4>
+                <p className="mt-1 text-sm text-content-muted">{Number(quiz.time_limit_minutes) > 0 ? t('lmsQuiz.practiceTimeLimit', { minutes: quiz.time_limit_minutes }) : t('lmsQuiz.untimedPractice')}</p>
+              </div>
+              <Button onClick={() => { setAttemptDurationMs(null); setIsTakingQuiz(true); }}>
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />{t('lmsQuiz.startQuiz')}
+              </Button>
+            </div>
+          )}
+
+          {canAttempt && isTakingQuiz && (
+            <QuizTakingScreen
+              quiz={quiz}
+              onSubmit={submitAnswers}
+              onComplete={handleAttemptComplete}
+              onExit={() => setIsTakingQuiz(false)}
+            />
           )}
 
           {latestAttempt && (
             <div className={`flex items-start gap-3 rounded-xl border p-4 ${latestAttempt.passed ? 'border-success-200 bg-success-50 text-success-800 dark:border-success-900/50 dark:bg-success-950/20 dark:text-success-200' : 'border-warning-200 bg-warning-50 text-warning-800 dark:border-warning-900/50 dark:bg-warning-950/20 dark:text-warning-200'}`} role="status">
               {latestAttempt.passed ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /> : <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />}
-              <div><p className="font-semibold">{latestAttempt.passed ? t('lmsQuiz.passed') : t('lmsQuiz.notPassed')}</p><p className="mt-1 text-sm">{t('lmsQuiz.score')}: {formatNumber(Number(latestAttempt.score))} / {formatNumber(Number(latestAttempt.total_points))} · {t('lmsQuiz.pointsEarned', { points: latestAttempt.points_awarded ?? 0 })}</p></div>
+              <div><p className="font-semibold">{latestAttempt.passed ? t('lmsQuiz.passed') : t('lmsQuiz.notPassed')}</p><p className="mt-1 text-sm">{t('lmsQuiz.score')}: {formatNumber(Number(latestAttempt.score))} / {formatNumber(Number(latestAttempt.total_points))} · {t('lmsQuiz.pointsEarned', { points: latestAttempt.points_awarded ?? 0 })}{attemptDurationMs != null ? ` · ${t('lmsQuiz.timeTaken', { time: formatElapsed(attemptDurationMs) })}` : ''}</p></div>
             </div>
           )}
 
