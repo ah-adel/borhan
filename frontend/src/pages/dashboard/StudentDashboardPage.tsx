@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { StatCard } from '@/components/ui/StatCard';
 import { useAuth } from '@/context/AuthContext';
@@ -395,20 +396,21 @@ export const StudentDashboardPage = memo(function StudentDashboardPage() {
                   </div>
 
                   <div className="mt-5 flex items-center justify-between gap-3">
-                    <button
+                    <Button
                       type="button"
-                      className="btn-secondary flex-1 justify-center"
+                      variant="secondary"
+                      className="flex-1"
                       onClick={() => navigate(`/courses/${course.id}?resume=1&lessonId=${course.nextLessonId ?? ''}`)}
                     >
                       {t('students.resume')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className="btn-primary flex-1 justify-center"
+                      className="flex-1"
                       onClick={() => navigate(`/courses/${course.id}`)}
                     >
                       {t('students.view')}
-                    </button>
+                    </Button>
                   </div>
 
                   <button

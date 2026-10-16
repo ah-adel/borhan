@@ -20,6 +20,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useTranslation, type TranslationKey } from '@/context/I18nContext';
 import { SecureMediaLink } from '@/components/dashboard/SecureMediaLink';
 import { SecureVideoEmbed } from '@/components/dashboard/SecureVideoEmbed';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import {
   createCourseForInstructor,
   fetchInstructorCourses,
@@ -951,25 +954,24 @@ export function InstructorDashboardPage() {
           {courseLoadError && <p className="mt-2 text-sm text-amber-600 dark:text-amber-300">{courseLoadError}</p>}
         </div>
 
-        <button
+        <Button
           type="button"
           onClick={() => openBuilderForCourse()}
-          className="btn-primary"
         >
           <Plus className="h-4 w-4" />
           {t('instructorDashboard.newCourse')}
-        </button>
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="card p-5">
+        <Card>
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500 dark:text-gray-400">{t('instructorDashboard.courses')}</p>
             <BookOpen className="h-5 w-5 text-primary-600" />
           </div>
           <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{courses.length}</p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t('instructorDashboard.activeTracks')}</p>
-        </div>
+        </Card>
 
         <div className="card p-5">
           <div className="flex items-center justify-between">
@@ -1029,17 +1031,9 @@ export function InstructorDashboardPage() {
                     </td>
                     <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-300">{course.category}</td>
                     <td className="px-5 py-4">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                          course.status === 'Published'
-                            ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
-                            : course.status === 'Review'
-                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
-                              : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                        }`}
-                      >
+                      <Badge variant={course.status === 'Published' ? 'success' : course.status === 'Review' ? 'warning' : 'neutral'}>
                         {course.status}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-200">{course.students}</td>
                     <td className="px-5 py-4">
@@ -1058,22 +1052,23 @@ export function InstructorDashboardPage() {
                     <td className="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white">{course.revenue}</td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2 whitespace-nowrap">
-                        <button
+                        <Button
                           type="button"
                           onClick={() => openBuilderForCourse(course)}
-                          className="btn-secondary px-3 py-2 text-xs"
+                          variant="secondary"
+                          size="sm"
                         >
                           <PencilLine className="h-3.5 w-3.5" />
                           {t('instructorDashboard.edit')}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => navigate(`/courses/${course.id}?preview=1`)}
-                          className="btn-primary px-3 py-2 text-xs"
+                          size="sm"
                         >
                           <Eye className="h-3.5 w-3.5" />
                           {t('instructorDashboard.view')}
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
