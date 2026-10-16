@@ -45,14 +45,21 @@
   },
   "branding": {
     "logoTitle": "Platform logo",
-    "logoDescription": "Choose an image shown to everyone across the platform.",
+    "logoDescription": "Logo versions are stored in this browser and are not synced to other devices.",
     "chooseLogo": "Choose image",
-    "restoreLogo": "Restore default",
-    "logoSaved": "Platform logo updated for everyone.",
-    "logoRemoved": "Default logo restored.",
+    "restoreLogo": "Delete all saved versions",
+    "savedVersions": "Saved logo versions",
+    "noSavedVersions": "No logo versions saved in this browser.",
+    "activeVersion": "Current logo",
+    "useVersion": "Use this version",
+    "deleteVersion": "Delete version",
+    "logoSaved": "Logo saved in this browser. Earlier versions were kept.",
+    "logoActivated": "Logo version activated.",
+    "versionDeleted": "Logo version deleted from this browser.",
+    "logoRemoved": "All logo versions were deleted from this browser.",
     "invalidImage": "Choose a PNG, JPEG, GIF, WebP, or AVIF image.",
     "tooLarge": "Choose an image that is 5 MB or smaller.",
-    "storageError": "The platform logo could not be updated. Please try again."
+    "storageError": "The logo could not be saved in this browser. Check browser storage and try again."
   },
   "common": {
     "brandName": "Borhan",
