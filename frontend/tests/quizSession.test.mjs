@@ -79,6 +79,10 @@ test('math segments support inline, block, escaped dollars, and malformed delimi
     { type: 'math', value: 'x^2', displayMode: true },
   ]);
   assert.deepEqual(mathModule.parseMathSegments('السعر \\$5'), [{ type: 'text', value: 'السعر $5' }]);
+  assert.deepEqual(mathModule.parseMathSegments('\\\\$x$'), [
+    { type: 'text', value: '\\\\' },
+    { type: 'math', value: 'x', displayMode: false },
+  ]);
   assert.deepEqual(mathModule.parseMathSegments('value $x+1'), [
     { type: 'text', value: 'value ' },
     { type: 'malformed', value: '$x+1' },

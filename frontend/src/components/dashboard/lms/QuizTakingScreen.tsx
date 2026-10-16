@@ -25,7 +25,7 @@ import type { Quiz, QuizAttempt, QuizQuestion } from '@/types/lms';
 interface QuizTakingScreenProps {
   quiz: Quiz;
   onSubmit: (answers: Record<string, unknown>) => Promise<QuizAttempt>;
-  onComplete: (attempt: QuizAttempt, timeTakenMs: number) => void;
+  onComplete: (attempt: QuizAttempt, timeTakenMs: number, session: QuizSessionState) => void;
   onExit: () => void;
 }
 
@@ -223,7 +223,7 @@ export function QuizTakingScreen({ quiz, onSubmit, onComplete, onExit }: QuizTak
         const storage = getSessionStorage();
         if (storage) clearQuizDraft(storage, quiz.id, state.startedAt);
         dispatch({ type: 'submit_succeeded' });
-        onComplete(attempt, Math.max(0, (firstSubmitAt.current ?? Date.now()) - state.startedAt));
+        onComplete(attempt, Math.max(0, (firstSubmitAt.current ?? Date.now()) - state.startedAt), state);
       })
       .catch(() => {
         submissionInFlight.current = false;
@@ -231,7 +231,7 @@ export function QuizTakingScreen({ quiz, onSubmit, onComplete, onExit }: QuizTak
         dispatch({ type: 'submit_failed' });
         showToast(t('lmsQuiz.submitError'), 'error');
       });
-  }, [onComplete, onSubmit, quiz.id, showToast, state.answers, state.phase, state.startedAt, t]);
+  }, [onComplete, onSubmit, quiz.id, showToast, state, t]);
 
   const navigateTo = useCallback((index: number) => {
     dispatch({ type: 'close_review' });

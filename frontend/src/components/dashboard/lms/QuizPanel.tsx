@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, CircleAlert, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
 import { QuizTakingScreen } from '@/components/dashboard/lms/QuizTakingScreen';
+import { QuizResultsScreen } from '@/components/dashboard/lms/QuizResultsScreen';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingState } from '@/components/ui/LoadingState';
 import {
   createQuiz,
   createQuizQuestion,
@@ -14,6 +18,7 @@ import {
   submitQuiz,
 } from '@/services/lmsRepository';
 import type { Quiz, QuizAttempt } from '@/types/lms';
+import type { QuizSessionState } from '@/lib/quizSession';
 
 type QuizPanelProps = {
   lessonIds: string[];
@@ -21,6 +26,7 @@ type QuizPanelProps = {
   activeLessonTitle: string | null;
   canManage: boolean;
   canAttempt: boolean;
+  onBackToCourse?: () => void;
 };
 
 type QuestionDraft = {
@@ -41,17 +47,7 @@ const emptyQuestionDraft = (): QuestionDraft => ({
   points: '1',
 });
 
-function formatElapsed(milliseconds: number): string {
-  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canManage, canAttempt }: QuizPanelProps) {
+export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canManage, canAttempt, onBackToCourse }: QuizPanelProps) {
   const { t, formatDate, formatNumber } = useI18n();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState('');
@@ -59,6 +55,7 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
   const [latestAttempt, setLatestAttempt] = useState<QuizAttempt | null>(null);
   const [attemptDurationMs, setAttemptDurationMs] = useState<number | null>(null);
+  const [latestFlaggedIds, setLatestFlaggedIds] = useState<string[]>([]);
   const [isTakingQuiz, setIsTakingQuiz] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -98,6 +95,7 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
       setAttempts([]);
       setLatestAttempt(null);
       setAttemptDurationMs(null);
+      setLatestFlaggedIds([]);
       setIsTakingQuiz(false);
       return;
     }
@@ -107,6 +105,7 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
     setError('');
     setLatestAttempt(null);
     setAttemptDurationMs(null);
+    setLatestFlaggedIds([]);
     setIsTakingQuiz(false);
     const requests: [Promise<Quiz>, Promise<QuizAttempt[]> | null] = [
       fetchQuiz(selectedQuizId),
@@ -132,6 +131,30 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
     const scoped = items.filter((item) => item.lesson_id && allowedLessonIds.has(item.lesson_id));
     setQuizzes(scoped);
     setSelectedQuizId(nextSelectedId ?? scoped[0]?.id ?? '');
+  }
+
+  async function retryLoad() {
+    setLoading(true);
+    setError('');
+    try {
+      const items = await fetchQuizzes();
+      const scoped = items.filter((item) => item.lesson_id && allowedLessonIds.has(item.lesson_id));
+      setQuizzes(scoped);
+      const nextId = scoped.some((item) => item.id === selectedQuizId) ? selectedQuizId : scoped[0]?.id ?? '';
+      setSelectedQuizId(nextId);
+      if (nextId) {
+        const [nextQuiz, history] = await Promise.all([
+          fetchQuiz(nextId),
+          canAttempt ? fetchQuizAttempts(nextId) : Promise.resolve([]),
+        ]);
+        setQuiz(nextQuiz);
+        setAttempts(history);
+      }
+    } catch {
+      setError(t('lmsQuiz.loadError'));
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleCreateQuiz(event: React.FormEvent<HTMLFormElement>) {
@@ -226,14 +249,19 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
     return result;
   }, [canAttempt, quiz]);
 
-  const handleAttemptComplete = useCallback((attempt: QuizAttempt, timeTakenMs: number) => {
+  const handleAttemptComplete = useCallback((attempt: QuizAttempt, timeTakenMs: number, session: QuizSessionState) => {
     setLatestAttempt(attempt);
     setAttemptDurationMs(timeTakenMs);
+    setLatestFlaggedIds(session.flaggedIds);
     setIsTakingQuiz(false);
   }, []);
 
   if (loading && !quiz && visibleQuizzes.length === 0) {
-    return <p className="text-sm text-gray-500 dark:text-gray-400" role="status">{t('common.loading')}</p>;
+    return <LoadingState label={t('common.loading')} />;
+  }
+
+  if (error && !quiz && !loading) {
+    return <ErrorState title={t('lmsQuiz.loadError')} description={error} retryLabel={t('lmsQuiz.retryResults')} onRetry={() => void retryLoad()} />;
   }
 
   return (
@@ -275,7 +303,7 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
         </div>
       )}
 
-      {!visibleQuizzes.length && !canManage && <p className="rounded-lg border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">{t('lmsQuiz.noQuizzes')}</p>}
+      {!visibleQuizzes.length && !canManage && <EmptyState title={t('lmsQuiz.noQuizzes')} description={t('lmsQuiz.noQuizzesDescription')} />}
       {!activeLessonId && canManage && <p className="text-sm text-gray-500 dark:text-gray-400">{t('lmsQuiz.noQuizzes')}</p>}
 
       {quiz && (
@@ -318,7 +346,7 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
             </div>
           )}
 
-          {!canManage && (quiz.questions?.length ?? 0) === 0 && <p className="text-sm text-gray-500 dark:text-gray-400">{t('lmsQuiz.noQuestions')}</p>}
+          {!canManage && (quiz.questions?.length ?? 0) === 0 && <EmptyState title={t('lmsQuiz.noQuestions')} description={t('lmsQuiz.noQuestionsDescription')} />}
 
           {canAttempt && (quiz.questions?.length ?? 0) > 0 && !latestAttempt && !isTakingQuiz && (
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface-card p-5">
@@ -342,10 +370,24 @@ export function QuizPanel({ lessonIds, activeLessonId, activeLessonTitle, canMan
           )}
 
           {latestAttempt && (
-            <div className={`flex items-start gap-3 rounded-xl border p-4 ${latestAttempt.passed ? 'border-success-200 bg-success-50 text-success-800 dark:border-success-900/50 dark:bg-success-950/20 dark:text-success-200' : 'border-warning-200 bg-warning-50 text-warning-800 dark:border-warning-900/50 dark:bg-warning-950/20 dark:text-warning-200'}`} role="status">
-              {latestAttempt.passed ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /> : <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />}
-              <div><p className="font-semibold">{latestAttempt.passed ? t('lmsQuiz.passed') : t('lmsQuiz.notPassed')}</p><p className="mt-1 text-sm">{t('lmsQuiz.score')}: {formatNumber(Number(latestAttempt.score))} / {formatNumber(Number(latestAttempt.total_points))} · {t('lmsQuiz.pointsEarned', { points: latestAttempt.points_awarded ?? 0 })}{attemptDurationMs != null ? ` · ${t('lmsQuiz.timeTaken', { time: formatElapsed(attemptDurationMs) })}` : ''}</p></div>
-            </div>
+            <QuizResultsScreen
+              quiz={quiz}
+              attempt={latestAttempt}
+              timeTakenMs={attemptDurationMs}
+              flaggedQuestionIds={latestFlaggedIds}
+              onRetry={() => {
+                setLatestAttempt(null);
+                setAttemptDurationMs(null);
+                setLatestFlaggedIds([]);
+                setIsTakingQuiz(true);
+              }}
+              onBack={() => {
+                setLatestAttempt(null);
+                setAttemptDurationMs(null);
+                setLatestFlaggedIds([]);
+                onBackToCourse?.();
+              }}
+            />
           )}
 
           {canAttempt && <div className="border-t border-gray-200 pt-4 dark:border-gray-800"><h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('lmsQuiz.attempts')}</h4>{attempts.length === 0 ? <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t('lmsQuiz.noAttempts')}</p> : <ul className="mt-2 divide-y divide-gray-100 dark:divide-gray-800">{attempts.map((attempt) => <li key={attempt.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"><span className="text-gray-600 dark:text-gray-300">{formatDate(attempt.attempted_at, { dateStyle: 'medium', timeStyle: 'short' })}</span><span className="font-medium text-gray-900 dark:text-white">{formatNumber(Number(attempt.score))} / {formatNumber(Number(attempt.total_points))}</span><span className={attempt.passed ? 'text-success-700 dark:text-success-300' : 'text-warning-700 dark:text-warning-300'}>{attempt.passed ? t('lmsQuiz.passed') : t('lmsQuiz.notPassed')}</span></li>)}</ul>}</div>}

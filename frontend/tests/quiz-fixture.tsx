@@ -1,6 +1,7 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QuizTakingScreen } from '../src/components/dashboard/lms/QuizTakingScreen';
+import { QuizResultsScreen } from '../src/components/dashboard/lms/QuizResultsScreen';
 import { I18nProvider, type Language } from '../src/context/I18nContext';
 import { ToastProvider } from '../src/components/ui/Toast';
 import type { Quiz, QuizAttempt } from '../src/types/lms';
@@ -37,20 +38,28 @@ const quiz: Quiz = {
   ],
 };
 
-function Fixture() {
+export function Fixture() {
   const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
+  const [timeTakenMs, setTimeTakenMs] = useState<number | null>(null);
+  const [flaggedIds, setFlaggedIds] = useState<string[]>([]);
+  const [returnedToCourse, setReturnedToCourse] = useState(false);
   const [key, setKey] = useState(0);
+  const hasReviewData = params.get('review') === '1';
+
+  function restart() {
+    setAttempt(null);
+    setTimeTakenMs(null);
+    setFlaggedIds([]);
+    setReturnedToCourse(false);
+    setKey((value) => value + 1);
+  }
 
   if (attempt) {
-    return (
-      <main className="mx-auto max-w-5xl p-5">
-        <div className="rounded-lg border border-border bg-surface-card p-5">
-          <h1 className="text-xl font-semibold">Fixture submitted</h1>
-          <pre className="mt-3 overflow-auto text-sm">{JSON.stringify(attempt, null, 2)}</pre>
-          <button className="btn-primary mt-4" onClick={() => { setAttempt(null); setKey((value) => value + 1); }}>Restart fixture</button>
-        </div>
-      </main>
-    );
+    return <QuizResultsScreen quiz={quiz} attempt={attempt} timeTakenMs={timeTakenMs} flaggedQuestionIds={flaggedIds} onRetry={restart} onBack={() => { setAttempt(null); setReturnedToCourse(true); }} />;
+  }
+
+  if (returnedToCourse) {
+    return <main className="mx-auto max-w-5xl p-5"><div className="card p-5"><h1 className="text-lg font-semibold">Course fixture</h1><button className="btn-primary mt-4" onClick={restart}>Start fixture again</button></div></main>;
   }
 
   return (
@@ -61,9 +70,24 @@ function Fixture() {
         id: 'fixture-attempt', student_id: 'fixture-student', quiz_id: quiz.id,
         score: 2, total_points: 4, passed: false, answers, attempted_at: new Date().toISOString(),
         points_awarded: 0, current_streak: 0,
+        ...(hasReviewData ? {
+          questions: quiz.questions?.map((question, index) => ({
+            ...question,
+            correct_answer: index === 0 ? '4' : index === 1
+              ? ['فرق بين مربعين', 'يساوي (a-b)(a+b)', 'يمكن تحليله']
+              : '25',
+            explanation: index === 0
+              ? 'نطرح ٣ ثم نقسم على ٢: $x=4$.'
+              : 'نستخدم التحليل المناسب لهذه العبارة.',
+          })),
+        } : {}),
       })}
-      onComplete={(nextAttempt) => setAttempt(nextAttempt)}
-      onExit={() => { setAttempt(null); setKey((value) => value + 1); }}
+      onComplete={(nextAttempt, elapsed, session) => {
+        setAttempt(nextAttempt);
+        setTimeTakenMs(elapsed);
+        setFlaggedIds(session.flaggedIds);
+      }}
+      onExit={restart}
     />
   );
 }

@@ -33,6 +33,7 @@ export type QuizAttempt = {
   attempted_at: string;
   points_awarded?: number;
   current_streak?: number;
+  questions?: QuizQuestion[];
 };
 
 export type PointTransaction = {

@@ -1322,6 +1322,7 @@ export function CourseDetailPage() {
                   activeLessonTitle={selectedLesson?.title ?? null}
                   canManage={canEditCourse && !isPreviewMode}
                   canAttempt={profile?.role === 'student' && isCourseStudentEnrolled && !isPreviewMode}
+                  onBackToCourse={() => setActiveTab('overview')}
                 />
               </div>
             )}

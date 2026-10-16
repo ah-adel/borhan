@@ -30,9 +30,17 @@ export function parseMathSegments(source: string): MathSegment[] {
   };
 
   while (index < source.length) {
-    if (source[index] === '\\' && source[index + 1] === '$') {
-      text += '$';
-      index += 2;
+    if (source[index] === '\\') {
+      let runEnd = index;
+      while (source[runEnd] === '\\') runEnd += 1;
+      const slashCount = runEnd - index;
+      if (source[runEnd] === '$' && slashCount % 2 === 1) {
+        text += `${'\\'.repeat(slashCount - 1)}$`;
+        index = runEnd + 1;
+        continue;
+      }
+      text += '\\'.repeat(slashCount);
+      index = runEnd;
       continue;
     }
     if (source[index] !== '$') {
