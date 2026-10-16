@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from pathlib import Path
@@ -13,6 +14,7 @@ from app import db
 from app.api.routes import admin as admin_routes
 from app.core.config import settings
 from app.core.security import create_access_token
+from app.services import cloud_media_service
 from app.main import app
 
 client = TestClient(app)
@@ -346,6 +348,114 @@ def test_admin_settings_and_cloud_storage_endpoints_persist_and_mask_secrets() -
     if isinstance(stored, str):
         stored = json.loads(stored)
     assert "smtp_password" not in stored
+
+
+def test_platform_logo_upload_is_admin_only_and_publicly_served(monkeypatch: pytest.MonkeyPatch) -> None:
+    stored_logo: dict[str, bytes | str | None] = {"content": None, "mime_type": None}
+
+    async def save_logo(content: bytes, mime_type: str) -> None:
+        stored_logo.update(content=content, mime_type=mime_type)
+
+    async def read_logo() -> tuple[bytes, str] | None:
+        if stored_logo["content"] is None:
+            return None
+        return stored_logo["content"], stored_logo["mime_type"]
+
+    async def delete_logo() -> None:
+        stored_logo.update(content=None, mime_type=None)
+
+    monkeypatch.setattr(admin_routes, "upload_platform_logo", save_logo)
+    monkeypatch.setattr(admin_routes, "get_platform_logo", read_logo)
+    monkeypatch.setattr(admin_routes, "delete_platform_logo", delete_logo)
+    png_content = b"\x89PNG\r\n\x1a\n" + b"test-image"
+    logo_file = {"file": ("brand.png", png_content, "image/png")}
+
+    unauthenticated = client.post("/api/admin/branding/logo", files=logo_file)
+    assert unauthenticated.status_code == 401
+
+    student_headers = _verified_actor_headers("student")
+    forbidden = client.post("/api/admin/branding/logo", headers=student_headers, files=logo_file)
+    assert forbidden.status_code == 403
+
+    uploaded = client.post("/api/admin/branding/logo", headers=ADMIN_HEADERS, files=logo_file)
+    assert uploaded.status_code == 200, uploaded.text
+    assert uploaded.json()["data"]["updated"] is True
+    assert stored_logo == {"content": png_content, "mime_type": "image/png"}
+
+    public_logo = client.get("/api/platform/branding/logo")
+    assert public_logo.status_code == 200
+    assert public_logo.content == png_content
+    assert public_logo.headers["content-type"] == "image/png"
+    assert public_logo.headers["cache-control"] == "no-store"
+    assert public_logo.headers["x-content-type-options"] == "nosniff"
+
+    removed = client.delete("/api/admin/branding/logo", headers=ADMIN_HEADERS)
+    assert removed.status_code == 200, removed.text
+    assert client.get("/api/platform/branding/logo").status_code == 404
+
+
+def test_platform_logo_rejects_invalid_type_and_oversized_upload() -> None:
+    unsupported = client.post(
+        "/api/admin/branding/logo",
+        headers=ADMIN_HEADERS,
+        files={"file": ("brand.svg", b"<svg/>", "image/svg+xml")},
+    )
+    assert unsupported.status_code == 415
+
+    oversized_content = b"\x89PNG\r\n\x1a\n" + (b"0" * (admin_routes.MAX_PLATFORM_LOGO_BYTES - 7))
+    oversized = client.post(
+        "/api/admin/branding/logo",
+        headers=ADMIN_HEADERS,
+        files={"file": ("brand.png", oversized_content, "image/png")},
+    )
+    assert oversized.status_code == 413
+
+
+def test_platform_logo_cloud_storage_uses_private_bucket_and_upsert(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests: list[tuple[str, str, dict, dict]] = []
+
+    class FakeResponse:
+        status_code = 200
+        content = b"logo-bytes"
+        headers = {"content-type": "image/png; charset=binary"}
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeClient:
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            return None
+
+        async def post(self, url: str, *, headers: dict, content: bytes) -> FakeResponse:
+            requests.append(("POST", url, headers, {"content": content}))
+            return FakeResponse()
+
+        async def get(self, url: str, *, headers: dict) -> FakeResponse:
+            requests.append(("GET", url, headers, {}))
+            return FakeResponse()
+
+        async def request(self, method: str, url: str, *, headers: dict, json: dict) -> FakeResponse:
+            requests.append((method, url, headers, {"json": json}))
+            return FakeResponse()
+
+    monkeypatch.setattr(cloud_media_service, "_supabase_config", lambda: ("https://storage.example", "service-secret", "private-media"))
+    monkeypatch.setattr(cloud_media_service.httpx, "AsyncClient", lambda **_: FakeClient())
+
+    asyncio.run(cloud_media_service.upload_platform_logo(b"logo-bytes", "image/png"))
+    logo = asyncio.run(cloud_media_service.get_platform_logo())
+    asyncio.run(cloud_media_service.delete_platform_logo())
+
+    assert logo == (b"logo-bytes", "image/png")
+    assert requests[0][0] == "POST"
+    assert requests[0][1].endswith("/private-media/platform/branding/logo")
+    assert requests[0][2]["x-upsert"] == "true"
+    assert requests[0][2]["Authorization"] == "Bearer service-secret"
+    assert requests[1][0] == "GET"
+    assert requests[2][0] == "DELETE"
+    assert requests[2][3]["json"] == {"prefixes": ["platform/branding/logo"]}
 
 
 def test_admin_validation_errors_include_field_details() -> None:

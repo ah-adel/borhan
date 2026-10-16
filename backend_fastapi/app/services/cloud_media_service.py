@@ -84,6 +84,61 @@ async def delete_supabase_object(object_key: str) -> None:
         raise MediaProviderError("Could not delete the Supabase Storage object.") from exc
 
 
+PLATFORM_LOGO_OBJECT_KEY = "platform/branding/logo"
+
+
+async def upload_platform_logo(content: bytes, mime_type: str) -> None:
+    base_url, service_key, bucket = _supabase_config()
+    endpoint = f"{base_url}/storage/v1/object/{quote(bucket, safe='')}/{quote(PLATFORM_LOGO_OBJECT_KEY, safe='/')}"
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+            response = await client.post(
+                endpoint,
+                headers={
+                    **_supabase_headers(service_key),
+                    "Content-Type": mime_type,
+                    "x-upsert": "true",
+                },
+                content=content,
+            )
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise MediaProviderError("Could not upload the platform logo to cloud storage.") from exc
+
+
+async def get_platform_logo() -> tuple[bytes, str] | None:
+    base_url, service_key, bucket = _supabase_config()
+    endpoint = f"{base_url}/storage/v1/object/{quote(bucket, safe='')}/{quote(PLATFORM_LOGO_OBJECT_KEY, safe='/')}"
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(15.0)) as client:
+            response = await client.get(endpoint, headers=_supabase_headers(service_key))
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise MediaProviderError("Could not read the platform logo from cloud storage.") from exc
+
+    mime_type = response.headers.get("content-type", "").split(";", maxsplit=1)[0].lower()
+    return response.content, mime_type
+
+
+async def delete_platform_logo() -> None:
+    base_url, service_key, bucket = _supabase_config()
+    endpoint = f"{base_url}/storage/v1/object/{quote(bucket, safe='')}"
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(15.0)) as client:
+            response = await client.request(
+                "DELETE",
+                endpoint,
+                headers={**_supabase_headers(service_key), "Content-Type": "application/json"},
+                json={"prefixes": [PLATFORM_LOGO_OBJECT_KEY]},
+            )
+            if response.status_code != 404:
+                response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise MediaProviderError("Could not remove the platform logo from cloud storage.") from exc
+
+
 def create_bunny_upload_signature(video_id: str, expires_at: int) -> tuple[str, str]:
     library_id = os.getenv("BUNNY_STREAM_LIBRARY_ID", "").strip()
     api_key = os.getenv("BUNNY_STREAM_API_KEY", "").strip()

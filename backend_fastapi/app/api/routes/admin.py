@@ -12,7 +12,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Windows / non-Unix environments
     resource = None
 
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, File, Header, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel, Field, field_validator
 import psycopg2
 
@@ -53,13 +53,28 @@ from app.db import (
 )
 from app.core.security import create_access_token, get_current_user
 from app.schemas.common import ApiErrorResponse, ApiSuccessResponse, validate_email
-from app.services.cloud_media_service import MediaProviderError, cleanup_course_media_assets, delete_cloud_media_asset
+from app.services.cloud_media_service import (
+    MediaProviderError,
+    cleanup_course_media_assets,
+    delete_cloud_media_asset,
+    delete_platform_logo,
+    get_platform_logo,
+    upload_platform_logo,
+)
 from app.services.public_course_cache import invalidate_public_course_cache
 from app.services.email_service import EmailDeliveryError, create_verification_token, hash_verification_token, send_test_email, send_verification_email
 
 router = APIRouter()
 _maintenance_mode = False
 _started_at = time.time()
+MAX_PLATFORM_LOGO_BYTES = 5 * 1024 * 1024
+PLATFORM_LOGO_SIGNATURES = {
+    "image/png": lambda content: content.startswith(b"\x89PNG\r\n\x1a\n"),
+    "image/jpeg": lambda content: content.startswith(b"\xff\xd8\xff"),
+    "image/gif": lambda content: content.startswith((b"GIF87a", b"GIF89a")),
+    "image/webp": lambda content: content.startswith(b"RIFF") and content[8:12] == b"WEBP",
+    "image/avif": lambda content: len(content) >= 12 and content[4:8] == b"ftyp" and content[8:12] in {b"avif", b"avis"},
+}
 
 
 class AdminRoleUpdateRequest(BaseModel):
@@ -659,6 +674,60 @@ async def admin_save_settings(payload: dict[str, Any], authorization: str | None
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"error": str(exc)}) from exc
     return ApiSuccessResponse(data=saved, message="Platform settings saved successfully.")
+
+
+@router.get("/platform/branding/logo", include_in_schema=False)
+async def public_platform_logo() -> Response:
+    try:
+        logo = await get_platform_logo()
+    except MediaProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail={"error": str(exc)}) from exc
+    if logo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "Platform logo not found."})
+
+    content, mime_type = logo
+    if mime_type not in PLATFORM_LOGO_SIGNATURES:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail={"error": "Stored platform logo has an unsupported image type."})
+    return Response(
+        content=content,
+        media_type=mime_type,
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.post("/admin/branding/logo", response_model=ApiSuccessResponse[dict[str, bool]])
+async def admin_upload_platform_logo(
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+) -> ApiSuccessResponse[dict[str, bool]]:
+    _require_admin(authorization)
+    mime_type = (file.content_type or "").split(";", maxsplit=1)[0].lower()
+    is_supported_image = PLATFORM_LOGO_SIGNATURES.get(mime_type)
+    if is_supported_image is None:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail={"error": "Use a PNG, JPEG, GIF, WebP, or AVIF image."})
+
+    content = await file.read(MAX_PLATFORM_LOGO_BYTES + 1)
+    await file.close()
+    if len(content) > MAX_PLATFORM_LOGO_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail={"error": "Platform logo must be 5 MB or smaller."})
+    if not content or not is_supported_image(content):
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail={"error": "The uploaded file does not match a supported image format."})
+
+    try:
+        await upload_platform_logo(content, mime_type)
+    except MediaProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail={"error": str(exc)}) from exc
+    return ApiSuccessResponse(data={"updated": True}, message="Platform logo updated successfully.")
+
+
+@router.delete("/admin/branding/logo", response_model=ApiSuccessResponse[dict[str, bool]])
+async def admin_delete_platform_logo(authorization: str | None = Header(default=None, alias="Authorization")) -> ApiSuccessResponse[dict[str, bool]]:
+    _require_admin(authorization)
+    try:
+        await delete_platform_logo()
+    except MediaProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail={"error": str(exc)}) from exc
+    return ApiSuccessResponse(data={"deleted": True}, message="Platform logo restored to default.")
 
 
 @router.get("/admin/storage", response_model=ApiSuccessResponse[dict[str, Any]])

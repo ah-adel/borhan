@@ -45,13 +45,14 @@
   },
   "branding": {
     "logoTitle": "Platform logo",
-    "logoDescription": "Choose an image to replace the graduation cap. It is saved in this browser only.",
+    "logoDescription": "Choose an image shown to everyone across the platform.",
     "chooseLogo": "Choose image",
     "restoreLogo": "Restore default",
-    "logoSaved": "Logo updated in this browser.",
+    "logoSaved": "Platform logo updated for everyone.",
     "logoRemoved": "Default logo restored.",
-    "invalidImage": "Choose a valid image file.",
-    "storageError": "The logo could not be saved in browser storage."
+    "invalidImage": "Choose a PNG, JPEG, GIF, WebP, or AVIF image.",
+    "tooLarge": "Choose an image that is 5 MB or smaller.",
+    "storageError": "The platform logo could not be updated. Please try again."
   },
   "common": {
     "brandName": "Borhan",

@@ -1,41 +1,14 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { Image, RotateCcw } from 'lucide-react';
 import { BrandMark } from '@/components/BrandMark';
-import {
-  BRAND_LOGO_CHANGE_EVENT,
-  getLocalBrandLogo,
-  removeLocalBrandLogo,
-  saveLocalBrandLogo,
-} from '@/lib/localBrandLogo';
+import { removePlatformLogo, uploadPlatformLogo } from '@/lib/platformBranding';
 import { useTranslation } from '@/context/I18nContext';
 
 export function BrandLogoSettings() {
   const { t } = useTranslation();
-  const [hasLogo, setHasLogo] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const refreshStatus = () => {
-      void getLocalBrandLogo()
-        .then((logo) => {
-          if (active) setHasLogo(Boolean(logo));
-        })
-        .catch(() => {
-          if (active) setHasLogo(false);
-        });
-    };
-    window.addEventListener(BRAND_LOGO_CHANGE_EVENT, refreshStatus);
-    window.addEventListener('storage', refreshStatus);
-    refreshStatus();
-    return () => {
-      active = false;
-      window.removeEventListener(BRAND_LOGO_CHANGE_EVENT, refreshStatus);
-      window.removeEventListener('storage', refreshStatus);
-    };
-  }, []);
 
   const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
@@ -46,11 +19,14 @@ export function BrandLogoSettings() {
     setError(null);
     setNotice(null);
     try {
-      await saveLocalBrandLogo(file);
-      setHasLogo(true);
+      await uploadPlatformLogo(file);
       setNotice(t('branding.logoSaved'));
-    } catch {
-      setError(file.type.startsWith('image/') ? t('branding.storageError') : t('branding.invalidImage'));
+    } catch (uploadError) {
+      setError(uploadError instanceof TypeError
+        ? t('branding.invalidImage')
+        : uploadError instanceof RangeError
+          ? t('branding.tooLarge')
+          : t('branding.storageError'));
     } finally {
       setBusy(false);
     }
@@ -61,8 +37,7 @@ export function BrandLogoSettings() {
     setError(null);
     setNotice(null);
     try {
-      await removeLocalBrandLogo();
-      setHasLogo(false);
+      await removePlatformLogo();
       setNotice(t('branding.logoRemoved'));
     } catch {
       setError(t('branding.storageError'));
@@ -96,7 +71,7 @@ export function BrandLogoSettings() {
           disabled={busy}
           onChange={(event) => void handleUpload(event)}
         />
-        <button type="button" className="btn-secondary min-h-11" disabled={!hasLogo || busy} onClick={() => void handleRemove()}>
+        <button type="button" className="btn-secondary min-h-11" disabled={busy} onClick={() => void handleRemove()}>
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
           {t('branding.restoreLogo')}
         </button>
