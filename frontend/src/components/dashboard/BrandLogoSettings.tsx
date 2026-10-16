@@ -81,9 +81,13 @@ export function BrandLogoSettings() {
     setError(null);
     setNotice(null);
     try {
-      await uploadPlatformLogo(file);
-      await updateVersions();
-      setNotice(t('branding.logoSaved'));
+      const archived = await uploadPlatformLogo(file);
+      if (archived) {
+        await updateVersions();
+        setNotice(t('branding.logoSaved'));
+      } else {
+        setNotice(t('branding.logoPublishedArchiveUnavailable'));
+      }
     } catch (uploadError) {
       setError(uploadError instanceof TypeError
         ? t('branding.invalidImage')
@@ -130,9 +134,13 @@ export function BrandLogoSettings() {
     setError(null);
     setNotice(null);
     try {
-      await removePlatformLogo();
-      await updateVersions();
-      setNotice(t('branding.logoRemoved'));
+      const archiveCleared = await removePlatformLogo();
+      if (archiveCleared) {
+        setVersions([]);
+        setNotice(t('branding.logoRemoved'));
+      } else {
+        setNotice(t('branding.logoRemovedArchiveUnavailable'));
+      }
     } catch {
       setError(t('branding.storageError'));
     } finally {
@@ -170,7 +178,7 @@ export function BrandLogoSettings() {
           disabled={busy}
           onChange={(event) => void handleUpload(event)}
         />
-        <Button type="button" variant="secondary" disabled={busy || versions.length === 0} onClick={() => void handleRemoveAll()}>
+        <Button type="button" variant="secondary" disabled={busy} onClick={() => void handleRemoveAll()}>
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
           {t('branding.restoreLogo')}
         </Button>
@@ -188,14 +196,11 @@ export function BrandLogoSettings() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-content-main" title={version.name}>{version.name}</p>
                   <p className="text-xs text-content-muted">{formatSavedDate(version.createdAt)}</p>
-                  {version.isActive && <p className="mt-1 text-xs font-semibold text-primary-700 dark:text-primary-300">{t('branding.activeVersion')}</p>}
                 </div>
                 <div className="ms-auto flex flex-wrap items-center gap-2">
-                  {!version.isActive && (
-                    <Button type="button" variant="secondary" disabled={busy} onClick={() => void handleActivate(version.id)}>
-                      {t('branding.useVersion')}
-                    </Button>
-                  )}
+                  <Button type="button" variant="secondary" disabled={busy} onClick={() => void handleActivate(version.id)}>
+                    {t('branding.useVersion')}
+                  </Button>
                   <Button
                     type="button"
                     variant="danger"

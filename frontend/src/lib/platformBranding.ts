@@ -1,10 +1,12 @@
+import { apiRequest } from '@/services/api';
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const LOGO_PATH = '/api/platform/branding/logo';
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const SUPPORTED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif']);
 const DATABASE_NAME = 'borhan-branding';
 const DATABASE_VERSION = 1;
 const LOGO_STORE = 'logos';
-const SETTINGS_STORE = 'settings';
-const ACTIVE_LOGO_KEY = 'active-logo-id';
 
 export const BRAND_LOGO_CHANGE_EVENT = 'borhan:brand-logo-change';
 
@@ -16,17 +18,16 @@ interface StoredLogo {
   createdAt: number;
 }
 
-interface LogoSetting {
-  key: string;
-  value: number;
-}
-
 export interface PlatformLogoVersion {
   id: number;
   name: string;
   mimeType: string;
   createdAt: number;
-  isActive: boolean;
+}
+
+export function getPlatformLogoUrl(revision = 0): string {
+  const path = `${API_BASE_URL}${LOGO_PATH}`;
+  return revision ? `${path}?v=${revision}` : path;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -40,9 +41,6 @@ function openDatabase(): Promise<IDBDatabase> {
       const database = request.result;
       if (!database.objectStoreNames.contains(LOGO_STORE)) {
         database.createObjectStore(LOGO_STORE, { keyPath: 'id', autoIncrement: true });
-      }
-      if (!database.objectStoreNames.contains(SETTINGS_STORE)) {
-        database.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -62,31 +60,7 @@ function notifyLogoChanged() {
   window.dispatchEvent(new Event(BRAND_LOGO_CHANGE_EVENT));
 }
 
-export async function getActivePlatformLogo(): Promise<Blob | null> {
-  const database = await openDatabase();
-  try {
-    const transaction = database.transaction([LOGO_STORE, SETTINGS_STORE], 'readonly');
-    const logosRequest = transaction.objectStore(LOGO_STORE).getAll() as IDBRequest<StoredLogo[]>;
-    const settingRequest = transaction.objectStore(SETTINGS_STORE).get(ACTIVE_LOGO_KEY) as IDBRequest<LogoSetting | undefined>;
-    const done = transactionComplete(transaction);
-    const [logos, setting] = await Promise.all([
-      new Promise<StoredLogo[]>((resolve, reject) => {
-        logosRequest.onsuccess = () => resolve(logosRequest.result);
-        logosRequest.onerror = () => reject(logosRequest.error);
-      }),
-      new Promise<LogoSetting | undefined>((resolve, reject) => {
-        settingRequest.onsuccess = () => resolve(settingRequest.result);
-        settingRequest.onerror = () => reject(settingRequest.error);
-      }),
-    ]);
-    await done;
-    return logos.find((logo) => logo.id === setting?.value)?.blob ?? null;
-  } finally {
-    database.close();
-  }
-}
-
-export async function getPlatformLogoBlob(id: number): Promise<Blob | null> {
+async function getStoredPlatformLogo(id: number): Promise<StoredLogo | null> {
   const database = await openDatabase();
   try {
     const transaction = database.transaction(LOGO_STORE, 'readonly');
@@ -97,29 +71,26 @@ export async function getPlatformLogoBlob(id: number): Promise<Blob | null> {
       request.onerror = () => reject(request.error);
     });
     await done;
-    return logo?.blob ?? null;
+    return logo ?? null;
   } finally {
     database.close();
   }
 }
 
+export async function getPlatformLogoBlob(id: number): Promise<Blob | null> {
+  return (await getStoredPlatformLogo(id))?.blob ?? null;
+}
+
 export async function listPlatformLogos(): Promise<PlatformLogoVersion[]> {
   const database = await openDatabase();
   try {
-    const transaction = database.transaction([LOGO_STORE, SETTINGS_STORE], 'readonly');
+    const transaction = database.transaction(LOGO_STORE, 'readonly');
     const logosRequest = transaction.objectStore(LOGO_STORE).getAll() as IDBRequest<StoredLogo[]>;
-    const settingRequest = transaction.objectStore(SETTINGS_STORE).get(ACTIVE_LOGO_KEY) as IDBRequest<LogoSetting | undefined>;
     const done = transactionComplete(transaction);
-    const [logos, setting] = await Promise.all([
-      new Promise<StoredLogo[]>((resolve, reject) => {
-        logosRequest.onsuccess = () => resolve(logosRequest.result);
-        logosRequest.onerror = () => reject(logosRequest.error);
-      }),
-      new Promise<LogoSetting | undefined>((resolve, reject) => {
-        settingRequest.onsuccess = () => resolve(settingRequest.result);
-        settingRequest.onerror = () => reject(settingRequest.error);
-      }),
-    ]);
+    const logos = await new Promise<StoredLogo[]>((resolve, reject) => {
+      logosRequest.onsuccess = () => resolve(logosRequest.result);
+      logosRequest.onerror = () => reject(logosRequest.error);
+    });
     await done;
     return logos
       .sort((left, right) => right.createdAt - left.createdAt)
@@ -128,14 +99,19 @@ export async function listPlatformLogos(): Promise<PlatformLogoVersion[]> {
         name,
         mimeType,
         createdAt,
-        isActive: id === setting?.value,
       }));
   } finally {
     database.close();
   }
 }
 
-export async function uploadPlatformLogo(file: File): Promise<void> {
+async function publishPlatformLogo(file: Blob, fileName: string): Promise<void> {
+  const form = new FormData();
+  form.append('file', file, fileName);
+  await apiRequest(`${API_BASE_URL}/api/admin/branding/logo`, { method: 'POST', body: form });
+}
+
+export async function uploadPlatformLogo(file: File): Promise<boolean> {
   if (!SUPPORTED_LOGO_TYPES.has(file.type.toLowerCase())) {
     throw new TypeError('Use a PNG, JPEG, GIF, WebP, or AVIF image.');
   }
@@ -143,74 +119,42 @@ export async function uploadPlatformLogo(file: File): Promise<void> {
     throw new RangeError('Platform logo must be 5 MB or smaller.');
   }
 
-  const database = await openDatabase();
+  await publishPlatformLogo(file, file.name);
+
+  let archived = true;
   try {
-    const transaction = database.transaction([LOGO_STORE, SETTINGS_STORE], 'readwrite');
-    const done = transactionComplete(transaction);
-    const addRequest = transaction.objectStore(LOGO_STORE).add({
-      blob: file,
-      name: file.name,
-      mimeType: file.type.toLowerCase(),
-      createdAt: Date.now(),
-    });
-    addRequest.onsuccess = () => {
-      transaction.objectStore(SETTINGS_STORE).put({ key: ACTIVE_LOGO_KEY, value: Number(addRequest.result) });
-    };
-    await done;
-  } finally {
-    database.close();
+    const database = await openDatabase();
+    try {
+      const transaction = database.transaction(LOGO_STORE, 'readwrite');
+      transaction.objectStore(LOGO_STORE).add({
+        blob: file,
+        name: file.name,
+        mimeType: file.type.toLowerCase(),
+        createdAt: Date.now(),
+      });
+      await transactionComplete(transaction);
+    } finally {
+      database.close();
+    }
+  } catch {
+    archived = false;
   }
   notifyLogoChanged();
+  return archived;
 }
 
 export async function activatePlatformLogo(id: number): Promise<void> {
-  const logo = await getPlatformLogoBlob(id);
+  const logo = await getStoredPlatformLogo(id);
   if (!logo) throw new RangeError('The selected logo version no longer exists.');
-
-  const database = await openDatabase();
-  try {
-    const transaction = database.transaction(SETTINGS_STORE, 'readwrite');
-    transaction.objectStore(SETTINGS_STORE).put({ key: ACTIVE_LOGO_KEY, value: id } satisfies LogoSetting);
-    await transactionComplete(transaction);
-  } finally {
-    database.close();
-  }
+  await publishPlatformLogo(logo.blob, logo.name);
   notifyLogoChanged();
 }
 
 export async function deletePlatformLogo(id: number): Promise<void> {
   const database = await openDatabase();
   try {
-    const transaction = database.transaction([LOGO_STORE, SETTINGS_STORE], 'readwrite');
-    const logoStore = transaction.objectStore(LOGO_STORE);
-    const settingsStore = transaction.objectStore(SETTINGS_STORE);
-    const logosRequest = logoStore.getAll() as IDBRequest<StoredLogo[]>;
-    const settingRequest = settingsStore.get(ACTIVE_LOGO_KEY) as IDBRequest<LogoSetting | undefined>;
-    let logos: StoredLogo[] | undefined;
-    let setting: LogoSetting | undefined;
-    let updated = false;
-
-    const updateWhenReady = () => {
-      if (updated || !logos || setting === undefined && settingRequest.readyState !== 'done') return;
-      updated = true;
-      logoStore.delete(id);
-      if (setting?.value === id) {
-        const replacement = logos
-          .filter((logo) => logo.id !== id)
-          .sort((left, right) => right.createdAt - left.createdAt)[0];
-        if (replacement) settingsStore.put({ key: ACTIVE_LOGO_KEY, value: replacement.id } satisfies LogoSetting);
-        else settingsStore.delete(ACTIVE_LOGO_KEY);
-      }
-    };
-
-    logosRequest.onsuccess = () => {
-      logos = logosRequest.result;
-      updateWhenReady();
-    };
-    settingRequest.onsuccess = () => {
-      setting = settingRequest.result;
-      updateWhenReady();
-    };
+    const transaction = database.transaction(LOGO_STORE, 'readwrite');
+    transaction.objectStore(LOGO_STORE).delete(id);
     await transactionComplete(transaction);
   } finally {
     database.close();
@@ -218,15 +162,21 @@ export async function deletePlatformLogo(id: number): Promise<void> {
   notifyLogoChanged();
 }
 
-export async function removePlatformLogo(): Promise<void> {
-  const database = await openDatabase();
+export async function removePlatformLogo(): Promise<boolean> {
+  await apiRequest(`${API_BASE_URL}/api/admin/branding/logo`, { method: 'DELETE' });
+  let archiveCleared = true;
   try {
-    const transaction = database.transaction([LOGO_STORE, SETTINGS_STORE], 'readwrite');
-    transaction.objectStore(LOGO_STORE).clear();
-    transaction.objectStore(SETTINGS_STORE).delete(ACTIVE_LOGO_KEY);
-    await transactionComplete(transaction);
-  } finally {
-    database.close();
+    const database = await openDatabase();
+    try {
+      const transaction = database.transaction(LOGO_STORE, 'readwrite');
+      transaction.objectStore(LOGO_STORE).clear();
+      await transactionComplete(transaction);
+    } finally {
+      database.close();
+    }
+  } catch {
+    archiveCleared = false;
   }
   notifyLogoChanged();
+  return archiveCleared;
 }
