@@ -12,8 +12,37 @@
 
 @layer base {
   :root {
-    --text-muted: #6b7280;
-    --text-accent-readable: #b94616;
+    --color-app-canvas: #f7f9fc;
+    --color-card-surface: #ffffff;
+    --color-border: #e5e7eb;
+    --color-text-main: #111827;
+    --color-text-muted: #6b7280;
+    --color-primary: #1c6af2;
+    --color-primary-strong: #1554df;
+    --color-accent-text: #b94616;
+    --color-success-text: #047857;
+    --color-warning-text: #b45309;
+    --color-danger-text: #b91c1c;
+    --color-focus-ring: #1c6af2;
+    --badge-success-bg: #d1fae5;
+    --badge-success-text: #047857;
+    --badge-warning-bg: #fef3c7;
+    --badge-warning-text: #b45309;
+    --badge-danger-bg: #fee2e2;
+    --badge-danger-text: #b91c1c;
+    --badge-info-bg: #dbeafe;
+    --badge-info-text: #1d4ed8;
+    --badge-primary-bg: #dbeafe;
+    --badge-primary-text: #1554df;
+    --badge-accent-bg: #fcecd6;
+    --badge-accent-text: #953919;
+    --radius-card: 12px;
+    --shadow-card: 0 4px 30px rgba(15, 23, 42, 0.05);
+    --space-dashboard-section: 24px;
+    --space-card-inset: 24px;
+    --space-control-gap: 16px;
+    --text-muted: var(--color-text-muted);
+    --text-accent-readable: var(--color-accent-text);
     --popover: #ffffff;
     --popover-foreground: #111827;
     --popover-border: #e5e7eb;
@@ -22,8 +51,32 @@
   }
 
   .dark {
-    --text-muted: #d1d5db;
-    --text-accent-readable: #f4b578;
+    --color-app-canvas: #030712;
+    --color-card-surface: #111827;
+    --color-border: #1f2937;
+    --color-text-main: #f3f4f6;
+    --color-text-muted: #9ca3af;
+    --color-primary: #7baaff;
+    --color-primary-strong: #a9c5ff;
+    --color-accent-text: #f4b578;
+    --color-success-text: #34d399;
+    --color-warning-text: #fbbf24;
+    --color-danger-text: #f87171;
+    --color-focus-ring: #7baaff;
+    --badge-success-bg: #064e3b;
+    --badge-success-text: #6ee7b7;
+    --badge-warning-bg: #78350f;
+    --badge-warning-text: #fcd34d;
+    --badge-danger-bg: #7f1d1d;
+    --badge-danger-text: #fca5a5;
+    --badge-info-bg: #1e3a8a;
+    --badge-info-text: #bfdbfe;
+    --badge-primary-bg: #142858;
+    --badge-primary-text: #93c5fd;
+    --badge-accent-bg: #431709;
+    --badge-accent-text: #fdba74;
+    --text-muted: var(--color-text-muted);
+    --text-accent-readable: var(--color-accent-text);
     --popover: #111827;
     --popover-foreground: #f9fafb;
     --popover-border: #374151;
@@ -32,7 +85,7 @@
   }
 
   * {
-    @apply border-gray-200 dark:border-gray-800;
+    @apply border-border;
   }
 
   html {
@@ -42,7 +95,7 @@
   }
 
   body {
-    @apply bg-surface-app text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+    @apply bg-surface-app text-content-main;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     overscroll-behavior: contain;
   }
@@ -74,19 +127,19 @@
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-950 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface-card px-4 py-2.5 text-sm font-semibold text-content-main transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-950 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .input-field {
-    @apply w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-primary-500;
+    @apply w-full rounded-lg border border-border bg-surface-card px-3.5 py-2.5 text-sm text-content-main placeholder-gray-400 transition-all focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:placeholder-gray-500 dark:focus:border-primary-500;
   }
 
   .card {
-    @apply rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900;
+    @apply rounded-card border border-border bg-surface-card shadow-card;
   }
 
   .label-text {
-    @apply mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300;
+    @apply mb-1.5 block text-sm font-medium text-content-main;
   }
 
   .language-toggle {
@@ -99,6 +152,13 @@
 
   .language-toggle__option--active {
     @apply bg-white text-primary-700 shadow-md dark:bg-gray-700 dark:text-primary-300;
+  }
+}
+
+@layer base {
+  :where(button, a, input, select, textarea, [role='button'], [role='switch'], [role='checkbox'], [role='combobox'], [role='menuitem'], [role='tab'], [role='option'], [tabindex]):focus-visible {
+    outline: 2px solid var(--color-focus-ring) !important;
+    outline-offset: 2px;
   }
 }
 

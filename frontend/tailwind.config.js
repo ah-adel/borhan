@@ -6,9 +6,33 @@ export default {
     extend: {
       colors: {
         surface: {
-          app: '#f7f9fc',
+          app: 'var(--color-app-canvas)',
+          card: 'var(--color-card-surface)',
+        },
+        border: 'var(--color-border)',
+        content: {
+          main: 'var(--color-text-main)',
+          muted: 'var(--color-text-muted)',
+        },
+        semantic: {
+          primary: 'var(--color-primary)',
+          primaryStrong: 'var(--color-primary-strong)',
+          accent: 'var(--color-accent-text)',
+          success: 'var(--color-success-text)',
+          warning: 'var(--color-warning-text)',
+          danger: 'var(--color-danger-text)',
+        },
+        badge: {
+          success: { DEFAULT: 'var(--badge-success-bg)', text: 'var(--badge-success-text)' },
+          warning: { DEFAULT: 'var(--badge-warning-bg)', text: 'var(--badge-warning-text)' },
+          danger: { DEFAULT: 'var(--badge-danger-bg)', text: 'var(--badge-danger-text)' },
+          info: { DEFAULT: 'var(--badge-info-bg)', text: 'var(--badge-info-text)' },
+          primary: { DEFAULT: 'var(--badge-primary-bg)', text: 'var(--badge-primary-text)' },
+          accent: { DEFAULT: 'var(--badge-accent-bg)', text: 'var(--badge-accent-text)' },
         },
         primary: {
+          DEFAULT: 'var(--color-primary)',
+          strong: 'var(--color-primary-strong)',
           50: '#eef6ff',
           100: '#d9ecff',
           200: '#bcdfff',
@@ -74,6 +98,17 @@ export default {
       fontFamily: {
         sans: ['Cairo', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         display: ['Cairo', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      spacing: {
+        'dashboard-section': 'var(--space-dashboard-section)',
+        'card-inset': 'var(--space-card-inset)',
+        'control-gap': 'var(--space-control-gap)',
+      },
+      borderRadius: {
+        card: 'var(--radius-card)',
+      },
+      boxShadow: {
+        card: 'var(--shadow-card)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
