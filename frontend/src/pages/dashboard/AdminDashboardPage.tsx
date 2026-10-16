@@ -22,6 +22,7 @@ import { useTranslation } from '@/context/I18nContext';
 import { extractApiErrorMessage, errorMessage } from '@/lib/apiError';
 import { fetchWithSession, getSessionToken } from '@/lib/sessionToken';
 import { Select } from '@/components/ui/Select';
+import { DataTable } from '@/components/ui/DataTable';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -575,66 +576,70 @@ export function AdminDashboardPage() {
           <Users className="h-5 w-5 text-primary-500" />
         </div>
 
-        <div className="overflow-x-auto p-5">
-          <table className="min-w-full text-start text-sm text-gray-700 dark:text-gray-200">
-            <thead className="bg-gray-50 dark:bg-gray-800/50">
-              <tr className="border-b border-gray-200 text-xs uppercase tracking-[0.08em] text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                <th className="p-3">{t('common.user')}</th>
-                <th className="p-3">{t('common.role')}</th>
-                <th className="p-3">{t('common.status')}</th>
-                <th className="p-3">{t('common.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b border-gray-200 last:border-b-0 dark:border-gray-700">
-                  <td className="p-3">
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-white">{user.name}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <Select
-                      value={user.role}
-                      onChange={(event) => void updateUserRole(user.id, event.target.value as UserRole)}
-                      aria-label={t('dashboard.userRoleFor', { name: user.name })}
-                      className="min-w-0 max-w-full"
-                    >
-                      <option value="student">{t('common.students')}</option>
-                      <option value="instructor">{t('common.instructors')}</option>
-                      <option value="admin">{t('common.admins')}</option>
-                    </Select>
-                  </td>
-                  <td className="p-3">
-                    <Select
-                      value={user.status}
-                      onChange={(event) => void updateUserStatus(user.id, event.target.value as 'active' | 'inactive' | 'suspended')}
-                      aria-label={t('dashboard.userStatusFor', { name: user.name })}
-                      className="min-w-0 max-w-full"
-                    >
-                      <option value="active">{t('common.active')}</option>
-                      <option value="inactive">{t('common.inactive')}</option>
-                      <option value="suspended">{t('dashboard.suspended')}</option>
-                    </Select>
-                  </td>
-                  <td className="p-3">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        deleteTriggerRef.current = event.currentTarget;
-                        setUserPendingDeletion(user);
-                      }}
-                      className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
-                    >
-                      {t('common.delete')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          ariaLabel={t('dashboard.users')}
+          rows={users}
+          getRowKey={(user) => user.id}
+          className="p-5"
+          emptyState={t('common.noResults')}
+          rowActionsLabel={t('common.actions')}
+          columns={[
+            {
+              id: 'user',
+              header: t('common.user'),
+              render: (user) => (
+                <div>
+                  <div className="font-medium text-gray-900 dark:text-white">{user.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+                </div>
+              ),
+            },
+            {
+              id: 'role',
+              header: t('common.role'),
+              render: (user) => (
+                <Select
+                  value={user.role}
+                  onChange={(event) => void updateUserRole(user.id, event.target.value as UserRole)}
+                  aria-label={t('dashboard.userRoleFor', { name: user.name })}
+                  className="min-w-0 max-w-full"
+                >
+                  <option value="student">{t('common.students')}</option>
+                  <option value="instructor">{t('common.instructors')}</option>
+                  <option value="admin">{t('common.admins')}</option>
+                </Select>
+              ),
+            },
+            {
+              id: 'status',
+              header: t('common.status'),
+              render: (user) => (
+                <Select
+                  value={user.status}
+                  onChange={(event) => void updateUserStatus(user.id, event.target.value as 'active' | 'inactive' | 'suspended')}
+                  aria-label={t('dashboard.userStatusFor', { name: user.name })}
+                  className="min-w-0 max-w-full"
+                >
+                  <option value="active">{t('common.active')}</option>
+                  <option value="inactive">{t('common.inactive')}</option>
+                  <option value="suspended">{t('dashboard.suspended')}</option>
+                </Select>
+              ),
+            },
+          ]}
+          rowActions={(user) => (
+            <button
+              type="button"
+              onClick={(event) => {
+                deleteTriggerRef.current = event.currentTarget;
+                setUserPendingDeletion(user);
+              }}
+              className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
+            >
+              {t('common.delete')}
+            </button>
+          )}
+        />
       </div>
 
       <div className="card overflow-hidden">
@@ -648,51 +653,58 @@ export function AdminDashboardPage() {
           <ShieldCheck className="h-5 w-5 text-violet-500" />
         </div>
 
-        <div className="overflow-x-auto p-5">
-          <table className="min-w-full text-start text-sm text-gray-700 dark:text-gray-200">
-            <thead className="bg-gray-50 dark:bg-gray-800/50">
-              <tr className="border-b border-gray-200 text-xs uppercase tracking-[0.08em] text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                <th className="p-3">{t('courses.course')}</th>
-                <th className="p-3">{t('courses.instructor')}</th>
-                <th className="p-3">{t('common.status')}</th>
-                <th className="p-3">{t('common.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {courses.map((course) => (
-                <tr key={course.id} className="border-b border-gray-200 last:border-b-0 dark:border-gray-700">
-                  <td className="p-3">
-                    <div className="font-medium text-gray-900 dark:text-white">{course.title}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{course.description}</div>
-                  </td>
-                  <td className="p-3 text-xs text-gray-500 dark:text-gray-400">{course.instructor_id}</td>
-                  <td className="p-3">
-                    <Select
-                      value={course.is_published ? 'published' : 'draft'}
-                      onChange={(event) => void updateCourseStatus(course.id, event.target.value as 'draft' | 'published' | 'review' | 'archived')}
-                      aria-label={t('dashboard.courseStatusFor', { name: course.title })}
-                      className="min-w-0 max-w-full"
-                    >
-                      <option value="draft">{t('common.draft')}</option>
-                      <option value="published">{t('common.published')}</option>
-                      <option value="review">{t('dashboard.pendingReviews')}</option>
-                      <option value="archived">{t('common.inactive')}</option>
-                    </Select>
-                  </td>
-                  <td className="p-3">
-                    <button
-                      type="button"
-                      onClick={() => void updateCourseStatus(course.id, 'published')}
-                      className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-                    >
-                      {t('common.published')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          ariaLabel={t('dashboard.courseReviewQueue')}
+          rows={courses}
+          getRowKey={(course) => course.id}
+          className="p-5"
+          emptyState={t('common.noResults')}
+          rowActionsLabel={t('common.actions')}
+          columns={[
+            {
+              id: 'course',
+              header: t('courses.course'),
+              render: (course) => (
+                <>
+                  <div className="font-medium text-gray-900 dark:text-white">{course.title}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{course.description}</div>
+                </>
+              ),
+            },
+            {
+              id: 'instructor',
+              header: t('courses.instructor'),
+              className: 'text-xs text-gray-500 dark:text-gray-400',
+              render: (course) => course.instructor_id,
+            },
+            {
+              id: 'status',
+              header: t('common.status'),
+              render: (course) => (
+                <Select
+                  value={course.is_published ? 'published' : 'draft'}
+                  onChange={(event) => void updateCourseStatus(course.id, event.target.value as 'draft' | 'published' | 'review' | 'archived')}
+                  aria-label={t('dashboard.courseStatusFor', { name: course.title })}
+                  className="min-w-0 max-w-full"
+                >
+                  <option value="draft">{t('common.draft')}</option>
+                  <option value="published">{t('common.published')}</option>
+                  <option value="review">{t('dashboard.pendingReviews')}</option>
+                  <option value="archived">{t('common.inactive')}</option>
+                </Select>
+              ),
+            },
+          ]}
+          rowActions={(course) => (
+            <button
+              type="button"
+              onClick={() => void updateCourseStatus(course.id, 'published')}
+              className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+            >
+              {t('common.published')}
+            </button>
+          )}
+        />
       </div>
 
       <div className="card overflow-hidden">

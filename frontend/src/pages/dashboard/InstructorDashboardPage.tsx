@@ -23,6 +23,7 @@ import { SecureVideoEmbed } from '@/components/dashboard/SecureVideoEmbed';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DataTable } from '@/components/ui/DataTable';
 import {
   createCourseForInstructor,
   fetchInstructorCourses,
@@ -1007,75 +1008,79 @@ export function InstructorDashboardPage() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('instructorDashboard.management')}</h2>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-start">
-              <thead className="bg-gray-50 text-xs uppercase tracking-[0.12em] text-gray-500 dark:bg-gray-900/60 dark:text-gray-400">
-                <tr>
-                  <th className="px-5 py-3">{t('instructorDashboard.course')}</th>
-                  <th className="px-5 py-3">{t('instructorDashboard.category')}</th>
-                  <th className="px-5 py-3">{t('instructorDashboard.status')}</th>
-                  <th className="px-5 py-3">{t('instructorDashboard.students')}</th>
-                  <th className="px-5 py-3">{t('instructorDashboard.completion')}</th>
-                  <th className="px-5 py-3">{t('instructorDashboard.revenue')}</th>
-                  <th className="px-5 py-3 text-end">{t('instructorDashboard.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {courses.map((course) => (
-                  <tr key={course.id} className="border-t border-gray-200 dark:border-gray-800">
-                    <td className="px-5 py-4">
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-white">{course.title}</p>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{course.aiModel}</p>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-300">{course.category}</td>
-                    <td className="px-5 py-4">
-                      <Badge variant={course.status === 'Published' ? 'success' : course.status === 'Review' ? 'warning' : 'neutral'}>
-                        {course.status}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-200">{course.students}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-primary-500 to-violet-500"
-                            style={{ width: `${course.completion}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                          {course.completion}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white">{course.revenue}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2 whitespace-nowrap">
-                        <Button
-                          type="button"
-                          onClick={() => openBuilderForCourse(course)}
-                          variant="secondary"
-                          size="sm"
-                        >
-                          <PencilLine className="h-3.5 w-3.5" />
-                          {t('instructorDashboard.edit')}
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={() => navigate(`/courses/${course.id}?preview=1`)}
-                          size="sm"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          {t('instructorDashboard.view')}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            ariaLabel={t('instructorDashboard.management')}
+            rows={courses}
+            getRowKey={(course) => course.id}
+            emptyState={t('common.noResults')}
+            rowActionsLabel={t('instructorDashboard.actions')}
+            columns={[
+              {
+                id: 'course',
+                header: t('instructorDashboard.course'),
+                render: (course) => (
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white">{course.title}</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{course.aiModel}</p>
+                  </div>
+                ),
+              },
+              {
+                id: 'category',
+                header: t('instructorDashboard.category'),
+                className: 'text-sm text-gray-600 dark:text-gray-300',
+                render: (course) => course.category,
+              },
+              {
+                id: 'status',
+                header: t('instructorDashboard.status'),
+                render: (course) => (
+                  <Badge variant={course.status === 'Published' ? 'success' : course.status === 'Review' ? 'warning' : 'neutral'}>
+                    {course.status}
+                  </Badge>
+                ),
+              },
+              {
+                id: 'students',
+                header: t('instructorDashboard.students'),
+                className: 'text-sm text-gray-700 dark:text-gray-200',
+                render: (course) => course.students,
+              },
+              {
+                id: 'completion',
+                header: t('instructorDashboard.completion'),
+                render: (course) => (
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-primary-500 to-violet-500"
+                        style={{ width: `${course.completion}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{course.completion}%</span>
+                  </div>
+                ),
+              },
+              {
+                id: 'revenue',
+                header: t('instructorDashboard.revenue'),
+                className: 'text-sm font-medium text-gray-900 dark:text-white',
+                render: (course) => course.revenue,
+              },
+            ]}
+            rowActions={(course) => (
+              <div className="flex justify-end gap-2 whitespace-nowrap">
+                <Button type="button" onClick={() => openBuilderForCourse(course)} variant="secondary" size="sm">
+                  <PencilLine className="h-3.5 w-3.5" />
+                  {t('instructorDashboard.edit')}
+                </Button>
+                <Button type="button" onClick={() => navigate(`/courses/${course.id}?preview=1`)} size="sm">
+                  <Eye className="h-3.5 w-3.5" />
+                  {t('instructorDashboard.view')}
+                </Button>
+              </div>
+            )}
+          />
         </div>
 
         <div className="card p-5">
